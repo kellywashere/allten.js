@@ -1,0 +1,22 @@
+body {
+	text-align: center;
+	font-family: 'Courier New', Courier, monospace;
+}
+
+canvas {
+	border: solid 1px black;
+}
+
+#board-div {
+	border: solid 1px black;
+	background-color: red;
+}
+
+#mydiv {
+	border: solid 1px black;
+	background-color: red;
+}
+
+#board {
+	background-color: floralwhite;
+}
