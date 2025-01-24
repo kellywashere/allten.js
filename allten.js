@@ -1,3 +1,7 @@
+// TODO: make token a class too?
+// TODO: add property "composite" to token
+// TODO: equals button enbl/disl
+
 let canvas;
 let ctx; // drawing context
 
@@ -10,6 +14,9 @@ let miscButtons = [];
 let allButtons = [];
 
 let exprBox;
+
+// keeps track of all buttons pressed (backspace, button states)
+let tokensEmitted = [];
 
 let digits = [4, 6, 8, 8];
 
@@ -54,6 +61,7 @@ class RoundRectButton {
 
 		this.callback = callback;
 		this.enabled = true;
+		this.visible = true;
 	}
 
 	enable() {
@@ -64,31 +72,36 @@ class RoundRectButton {
 		this.enabled = false;
 	}
 
+	show() {
+		this.visible = true;
+	}
+
+	hide() {
+		this.visible = false;
+	}
+
 	setCallback(fn) {
 		this.callback = fn;
 	}
 
 	draw(ctx) {
+		if (!this.visible) return;
 		let bgcolor = this.enabled ? this.bgcolor : "#dddddd";
 		ctx.beginPath(); // rect path for fill and clip
-		ctx.roundRect(
-			this.x - this.w / 2,
-			this.y - this.h / 2,
-			this.w,
-			this.h,
-			this.r,
-		);
+		// prettier-ignore
+		ctx.roundRect( this.x - this.w / 2, this.y - this.h / 2, this.w, this.h, this.r);
 		ctx.fillStyle = bgcolor;
 		ctx.fill();
 	}
 
 	clicked() {
-		if (this.enabled && this.callback) {
+		if (this.enabled && this.visible && this.callback) {
 			this.callback(this);
 		}
 	}
 
 	isInButton(x, y) {
+		if (!this.visible) return false;
 		// pretty involved, with rounded rect...
 		// prettier-ignore
 		return pointInRect(x, y, this.x - this.w / 2, this.y - this.h / 2 + this.r, this.w, this.h - 2 * this.r) ||
@@ -107,6 +120,7 @@ class RoundRectTextButton extends RoundRectButton {
 	}
 
 	draw(ctx) {
+		if (!this.visible) return;
 		super.draw(ctx); // path can now be used for clipping
 		// draw centered text
 		ctx.save();
@@ -206,6 +220,8 @@ class TextBox {
 
 // helper for NumDen
 function gcd(a, b) {
+	a = a < 0 ? -a : a;
+	b = b < 0 ? -b : b;
 	while (b > 0) {
 		let t = b;
 		b = a % b;
@@ -248,7 +264,7 @@ class NumDen {
 		this.den *= other.den;
 	}
 
-	div(other) {
+	nd_div(other) {
 		// this := this / other = this * (1/other)
 		this.num *= other.den;
 		this.den *= other.num;
@@ -267,6 +283,11 @@ class NumDen {
 	}
 
 	simplify() {
+		if (this.den == 0) return; // try not to create a black hole
+		if (this.den < 0) {
+			this.num = -this.num;
+			this.den = -this.den;
+		}
 		let g = gcd(this.num, this.den);
 		this.num /= g;
 		this.den /= g;
@@ -294,6 +315,10 @@ function precedence(op) {
 }
 
 function onTokenEmitted(t) {
+	// store token in array
+	tokensEmitted.push(t);
+	setButtonStates(); // update buttons accordingly
+
 	// TODO: Error checking, e.g. keeping track of lastly processed token
 	if (t.num) {
 		// defined and true if t is number
@@ -351,9 +376,9 @@ function evalRPN() {
 			let v2 = res_stack.pop(); // NumDen
 			let v1 = res_stack.pop(); // NumDen
 			if (t.val == "*") v1.mul(v2);
-			else if (t.val == "/") v1.div(v2);
+			else if (t.val == "/") v1.nd_div(v2);
 			else if (t.val == "+") v1.add(v2);
-			else if (t.val == "-") c1.sub(v2);
+			else if (t.val == "-") v1.sub(v2);
 			else {
 				// TODO: Operator error
 				return null;
@@ -375,15 +400,6 @@ window.onload = function () {
 	canvas.height = window.innerHeight;
 	ctx = canvas.getContext("2d");
 
-	canvas.addEventListener("click", function (e) {
-		console.log("x: " + e.offsetX + ", y: ", e.offsetY);
-		for (const button of allButtons) {
-			if (button.isInButton(e.offsetX, e.offsetY)) {
-				button.clicked();
-			}
-		}
-	});
-
 	midX = canvas.width / 2;
 	midY = canvas.height - 300; // middle of input button field
 	nrButtonColor = "red";
@@ -404,8 +420,8 @@ window.onload = function () {
 	);
 	// prettier-ignore
 	bracketButtons.push(
-		new RoundRectTextButton(midX - 140, midY, 60, 60, 20, "(", symButtonColor, onOperatorClicked),
-		new RoundRectTextButton(midX + 140, midY, 60, 60, 20, ")", symButtonColor, onOperatorClicked),
+		new RoundRectTextButton(midX - 140, midY, 60, 60, 20, "(", symButtonColor, onBracketClicked),
+		new RoundRectTextButton(midX + 140, midY, 60, 60, 20, ")", symButtonColor, onBracketClicked),
 	);
 	// prettier-ignore
 	miscButtons.push(
@@ -415,14 +431,92 @@ window.onload = function () {
 
 	exprBox = new TextBox(midX, midY - 180, 400, 40, "black", "#aaaaaa");
 
-	evalInit();
+	// Mouse listener, takes care of all input events
+	canvas.addEventListener("click", function (e) {
+		console.log("x: " + e.offsetX + ", y: ", e.offsetY);
+		for (const button of allButtons) {
+			if (button.isInButton(e.offsetX, e.offsetY)) {
+				button.clicked();
+			}
+		}
+	});
+
+	buttonInit(); // sets en/disable of buttons
+	evalInit(); // init the eval data structures
 
 	requestAnimationFrame(gameloop);
 };
 
+function buttonInit() {
+	tokensEmitted = [];
+	setButtonStates();
+}
+
+// helper
+function isOperatorToken(t) {
+	if (t.num) return false;
+	return t.val == "*" || t.val == "/" || t.val == "+" || t.val == "-";
+}
+
+function setButtonStates() {
+	let last_token =
+		tokensEmitted.length > 0 ? tokensEmitted[tokensEmitted.length - 1] : null;
+
+	let nrs_enable = true; // TODO: condition
+	if (last_token && !last_token.num && last_token.val == ")") {
+		nrs_enable = false;
+	}
+	for (button of nrButtons) {
+		if (nrs_enable) {
+			button.enable();
+		} else {
+			button.disable();
+		}
+	}
+	let op_enable = last_token && (last_token.num || last_token.val == ")");
+	for (button of opButtons) {
+		if (op_enable) {
+			button.enable();
+		} else {
+			button.disable();
+		}
+	}
+	// brackets
+	let bracket_depth = 0;
+	for (t of tokensEmitted) {
+		if (!t.num && t.val == "(") {
+			++bracket_depth;
+		} else if (!t.num && t.val == ")") {
+			--bracket_depth;
+		}
+	}
+	// open bracket:
+	let brack_enbl = bracket_depth < 3;
+	if (last_token && (last_token.num || last_token.val == ")")) {
+		brack_enbl = false;
+	}
+	if (brack_enbl) {
+		bracketButtons[0].enable();
+	} else {
+		bracketButtons[0].disable();
+	}
+	// closing bracket:
+	brack_enbl = bracket_depth > 0;
+	if (last_token && (isOperatorToken(last_token) || last_token.val == "(")) {
+		brack_enbl = false;
+	}
+	if (brack_enbl) {
+		bracketButtons[1].enable();
+	} else {
+		bracketButtons[1].disable();
+	}
+}
+
 function onNumClicked(button) {
 	// special case: if this is first nr pressed, we empty expr box first
-	if (rpn_queue.length == 0) {
+	let last_token =
+		tokensEmitted.length > 0 ? tokensEmitted[tokensEmitted.length - 1] : null;
+	if (!last_token || (!last_token.num && last_token.val == "=")) {
 		exprBox.setText("");
 	}
 	let nd = new NumDen(button.nd); // copy the NumDen
@@ -433,7 +527,7 @@ function onNumClicked(button) {
 function onOperatorClicked(button) {
 	// special case: if we press operator before anything else, and we use "Ans" as first nr
 	let ans = exprBox.getText();
-	if (rpn_queue.length == 0 && ans.length > 0) {
+	if (tokensEmitted.length == 0) {
 		onTokenEmitted({ num: true, val: parseInt(ans) });
 	}
 	opstr = button.txt;
@@ -446,11 +540,27 @@ function onOperatorClicked(button) {
 	onTokenEmitted({ num: false, val: opstr });
 }
 
+function onBracketClicked(button) {
+	// special case: if this is first button pressed, we empty expr box first
+	if (tokensEmitted.length == 0) {
+		exprBox.setText("");
+	}
+	opstr = button.txt;
+	exprBox.setText(exprBox.getText() + opstr);
+	onTokenEmitted({ num: false, val: opstr });
+}
+
+
 function onEqualsClicked() {
 	let res = evalRPN(); // NumDen
 	evalInit();
-	exprBox.setText(res.toString());
+	if (res.den == 0) {
+		exprBox.setText("Division by 0");
+	} else {
+		exprBox.setText(res.toString());
+	}
 	console.log(res.toString());
+	tokensEmitted.push( { num:false, val:"=" } ); // FIXME: this is a hack for now
 }
 
 function gameloop() {
