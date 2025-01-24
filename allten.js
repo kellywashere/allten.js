@@ -139,6 +139,67 @@ class TextBox {
 	}
 }
 
+// ====================== NumDen =================================
+
+// helper for NumDen
+function gcd(a, b) {
+	while (b > 0) {
+		let t = b;
+		b = a % b;
+		a = t;
+	}
+	return a;
+}
+
+class NumDen {
+	constructor(num, den) {
+		this.set(num, den);
+	}
+
+	set(num, den) {
+		this.num = num;
+		if (den) this.den = den;
+		else this.den = 1;
+	}
+
+	copy_from(other) {
+		this.num = other.num;
+		this.den = other.den;
+	}
+
+	toString() {
+		if (this.den == 1) return this.num.toString();
+		return this.num.toString() + "/" + this.den.toString();
+	}
+
+	mul(other) { // this := this * other
+		this.num *= other.num;
+		this.den *= other.den;
+	}
+
+	div(other) { // this := this / other = this * (1/other)
+		this.num *= other.den;
+		this.den *= other.num;
+	}
+
+	add(other) { // this := this + other
+		this.num = this.num * other.den + this.den * other.num;
+		this.den *= other.den;
+	}
+
+	sub(other) { // this := this - other
+		this.num = this.num * other.den - this.den * other.num;
+		this.den *= other.den;
+	}
+
+	simplify() {
+		let g = gcd(this.num, this.den);
+		this.num /= g;
+		this.den /= g;
+	}
+}
+
+
 // ====================== Shunting Yard Algo =================================
 
 // Shunting yard, where the input token stream is provided by button presses
