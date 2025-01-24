@@ -1,10 +1,13 @@
 let canvas;
 let ctx; // drawing context
 
-//const canvasW = 480;
-const canvasH = 600;
+// UI elements
+let nrButtons = [];
+let opButtons = [];
+let miscButtons = [];
 
-let buttons = [];
+let allButtons = [];
+
 let exprBox;
 
 let digits = [4, 6, 8, 8];
@@ -59,7 +62,7 @@ class CircButton {
 
 	clicked() {
 		if (this.enabled && this.callback) {
-			this.callback(this.txt); // TODO: ID instead of txt?
+			this.callback(this);
 		}
 	}
 
@@ -239,7 +242,7 @@ window.onload = function () {
 
 	canvas.addEventListener("click", function (e) {
 		console.log("x: " + e.offsetX + ", y: ", e.offsetY);
-		for (const button of buttons) {
+		for (const button of allButtons) {
 			if (button.isInButton(e.offsetX, e.offsetY)) {
 				button.clicked();
 			}
@@ -251,19 +254,27 @@ window.onload = function () {
 	nrButtonColor = "red";
 	symButtonColor = "DarkBlue";
 	// prettier-ignore
-	buttons.push(
+	nrButtons.push(
 		new CircTextButton(midX - 80, midY - 80, 40, digits[0].toString(), nrButtonColor, onNumClicked),
 		new CircTextButton(midX + 80, midY - 80, 40, digits[1].toString(), nrButtonColor, onNumClicked),
 		new CircTextButton(midX - 80, midY + 80, 40, digits[2].toString(), nrButtonColor, onNumClicked),
-		new CircTextButton(midX + 80, midY + 80, 40, digits[3].toString(), nrButtonColor, onNumClicked),
+		new CircTextButton(midX + 80, midY + 80, 40, digits[3].toString(), nrButtonColor, onNumClicked)
+	);
+	// prettier-ignore
+	opButtons.push(
 		new CircTextButton(midX, midY - 60, 30, "+", symButtonColor, onOperatorClicked),
 		new CircTextButton(midX, midY + 60, 30, "-", symButtonColor, onOperatorClicked),
 		new CircTextButton(midX - 60, midY, 30, "x", symButtonColor, onOperatorClicked),
 		new CircTextButton(midX + 60, midY, 30, "÷", symButtonColor, onOperatorClicked),
 		new CircTextButton(midX - 140, midY, 30, "(", symButtonColor, onOperatorClicked),
 		new CircTextButton(midX + 140, midY, 30, ")", symButtonColor, onOperatorClicked),
+	);
+	// prettier-ignore
+	miscButtons.push(
 		new CircTextButton(midX, midY + 200, 40, "=", symButtonColor, onEqualsClicked)
 	);
+	allButtons = nrButtons.concat(opButtons, miscButtons);
+
 	exprBox = new TextBox(midX, midY - 180, 400, 40, "black", "#aaaaaa");
 
 	evalInit();
@@ -271,14 +282,24 @@ window.onload = function () {
 	requestAnimationFrame(gameloop);
 };
 
-function onNumClicked(numstr) {
-	let t = { num: true, val: parseInt(numstr) };
-	exprBox.setText(exprBox.getText() + t.val);
-	onTokenEmitted(t);
+function onNumClicked(button) {
+	// special case: if this is first nr pressed, we empty expr box first
+	if (rpn_queue.length == 0) {
+		exprBox.setText("");
+	}
+	let nr = parseInt(button.txt);
+	exprBox.setText(exprBox.getText() + nr);
+	onTokenEmitted({ num: true, val: nr });
 }
 
-function onOperatorClicked(opstr) {
-	exprBox.setText(exprBox.getText() + opstr);
+function onOperatorClicked(button) {
+	// special case: if we press operator before anything else, and we use "Ans" as first nr
+	let ans = exprBox.getText();
+	if (rpn_queue.length == 0 && ans.length > 0) {
+		onTokenEmitted({ num: true, val: parseInt(ans) });
+	}
+	opstr = button.txt;
+	exprBox.setText(exprBox.getText() + " " + opstr + " ");
 	if (opstr == "x") {
 		opstr = "*";
 	} else if (opstr == "÷") {
@@ -297,7 +318,7 @@ function onEqualsClicked() {
 function gameloop() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	// draw all UI elements
-	for (const button of buttons) {
+	for (const button of allButtons) {
 		button.draw(ctx);
 	}
 	exprBox.draw(ctx);
