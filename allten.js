@@ -1,6 +1,8 @@
 // TODO: backspace
 // TODO: composite bg color
-
+// TODO: Solved buttons. When clicked, show sol in text UI
+// TODO: Error state of middle text box
+//
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
 let canvas;
@@ -11,6 +13,8 @@ let nrButtons = [];
 let opButtons = [];
 let bracketButtons = [];
 let miscButtons = [];
+
+let solvedButtons = [];
 
 let allButtons = []; // convenience: array of all buttons
 
@@ -25,7 +29,7 @@ let digits = [4, 6, 8, 8];
 
 const font_family = "Arial";
 const symButtonColor = "DarkBlue";
-
+const solvedButtonColor = "YellowGreen";
 /*
 function drawCircle(ctx, x, y, r, fillcolor, strokecolor) {
 	ctx.beginPath();
@@ -152,6 +156,8 @@ class RoundRectNumDenButton extends RoundRectButton {
 		super(x, y, w, h, r, bgcolor, callback);
 		this.nd = nd; // value NumDen
 		this.iscomposite = false; // true if nd is result of earlier calculation
+		// TODO: equation:
+		this.equation = ""; // for composite: equation how this was reached
 	}
 
 	draw(ctx) {
@@ -327,9 +333,13 @@ function evalInit() {
 
 // helper
 function precedence(op) {
-	if (op == "+" || op == "-") return 1;
-	if (op == "*" || op == "/") return 2;
-	if (op == "c") return 3; // concat operator
+	// Shunting Yard algo goes wrong if prec of + and - are same
+	// for example in 4 - 8 + 8 case
+	if (op == "+") return 1;
+	if (op == "-") return 2;
+	if (op == "*") return 3;
+	if (op == "/") return 4;
+	if (op == "c") return 5;
 	console.log("Unexpected operator " + op);
 	return -1;
 }
@@ -380,7 +390,8 @@ function evalRPN() {
 	}
 	if (rpn_queue.length == 0) return null;
 
-	// console.log(rpn_queue);
+	console.log("evalRPN()");
+	print_queue(rpn_queue);
 
 	// now process rpn_queue
 	let res_stack = [];
@@ -428,6 +439,7 @@ window.onload = function () {
 	midX = canvas.width / 2;
 	midY = canvas.height - 300; // middle of input button field
 	let nrButtonColor = "red";
+	// TODO: make next part a function
 	// prettier-ignore
 	nrButtons.push(
 		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
@@ -451,13 +463,32 @@ window.onload = function () {
 	miscButtons.push(
 		new RoundRectTextButton(midX, midY + 200, 80, 80, 20, "=", symButtonColor, onEqualsClicked)
 	);
-	allButtons = nrButtons.concat(opButtons, bracketButtons, miscButtons);
+	for (let ii = 0; ii < 5; ++ii) {
+		// prettier-ignore
+		solvedButtons.push(
+			new RoundRectTextButton(midX + (ii - 2) * 80, midY - 340, 60, 60, 14,
+				(ii + 1).toString(), solvedButtonColor, onSolutionClicked)
+		);
+	}
+	for (let ii = 0; ii < 5; ++ii) {
+		// prettier-ignore
+		solvedButtons.push(
+			new RoundRectTextButton(midX + (ii - 2) * 80, midY - 340 + 80, 60, 60, 14,
+				(ii + 6).toString(), solvedButtonColor, onSolutionClicked)
+		);
+	}
+
+	allButtons = nrButtons.concat(
+		opButtons,
+		bracketButtons,
+		miscButtons,
+		solvedButtons,
+	);
 
 	exprBox = new TextBox(midX, midY - 180, 400, 40, "black", "#aaaaaa");
 
 	// Mouse listener, takes care of all input events
 	canvas.addEventListener("click", function (e) {
-		console.log("x: " + e.offsetX + ", y: ", e.offsetY);
 		for (const button of allButtons) {
 			if (button.isInButton(e.offsetX, e.offsetY)) {
 				button.clicked();
@@ -466,6 +497,9 @@ window.onload = function () {
 	});
 
 	// init
+	for (b of solvedButtons) {
+		b.disable();
+	}
 	buttonInit(); // sets en/disable of buttons
 	evalInit(); // init the eval data structures
 	lastResultButton = null;
@@ -583,6 +617,11 @@ function setButtonStates() {
 	}
 }
 
+function showSolution(sol) {
+	// TODO: Remember full solution expression to show when sol button is pressed
+	solvedButtons[sol - 1].enable();
+}
+
 function onNumClicked(button) {
 	// remember last button, to see if we need to concat
 	let lastButton =
@@ -642,27 +681,45 @@ function onEqualsClicked() {
 
 	let res = evalRPN(); // NumDen
 	if (!res) return;
+	console.log(res.toString());
+
+	let reset = true; // when true, resets state
 
 	evalInit();
 	if (res.den == 0) {
 		exprBox.setText("Division by 0"); // TODO: clear when starting new eq (exprBox err state?)
-		// init, start new expression
-		buttonInit(); // sets en/disable of buttons
-		evalInit(); // init the eval data structures
-		lastResultButton = null;
 		// TODO: test this case
 	} else {
 		exprBox.setText(res.toString());
 		// two cases: all nrs are used, or not
 		if (allNumbersUsed()) {
-			// TODO: implement
+			// check solution
+			if (res.den == 1 && res.num >= 1 && res.num <= 10) {
+				showSolution(res.num);
+				exprBox.setText(""); // TODO: or show in green?
+			} else {
+				// TODO: Error state
+			}
 		} else {
+			// only way reset becomes false
 			exprBox.setText("");
 			lastResultButton = relabelNrButton(res);
+			reset = false; // keep going...
 		}
 	}
-	console.log(res.toString());
+	if (reset) {
+		// init, start new expression
+		buttonInit(); // sets en/disable of buttons
+		// evalInit(); // already done at start of fn
+		lastResultButton = null;
+	}
+
 	setButtonStates(); // update buttons accordingly
+}
+
+function onSolutionClicked(button) {
+	let solClicked = parseInt(button.txt);
+	console.log("Solution " + solClicked);
 }
 
 function gameloop() {
@@ -674,4 +731,13 @@ function gameloop() {
 	exprBox.draw(ctx);
 
 	requestAnimationFrame(gameloop);
+}
+
+// TODO: remove
+function print_queue(queue) {
+	let str = "";
+	for (t of queue) {
+		str += t.val.toString() + ", ";
+	}
+	console.log(str);
 }
