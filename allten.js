@@ -1,6 +1,11 @@
+// TODO: concat
 // TODO: make token a class too?
 // TODO: add property "composite" to token
 // TODO: equals button enbl/disl
+// TODO: backspace
+// TODO: composite bg color
+
+// nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
 let canvas;
 let ctx; // drawing context
@@ -11,16 +16,19 @@ let opButtons = [];
 let bracketButtons = [];
 let miscButtons = [];
 
-let allButtons = [];
+let allButtons = []; // convenience: array of all buttons
 
 let exprBox;
 
+// STATE variables
 // keeps track of all buttons pressed (backspace, button states)
-let tokensEmitted = [];
+let buttonsPressed = [];
+let lastResultButton = null; // used for intermediate results
 
 let digits = [4, 6, 8, 8];
 
 const font_family = "Arial";
+const symButtonColor = "DarkBlue";
 
 /*
 function drawCircle(ctx, x, y, r, fillcolor, strokecolor) {
@@ -135,10 +143,19 @@ class RoundRectTextButton extends RoundRectButton {
 	}
 }
 
+class RoundRectOperatorButton extends RoundRectTextButton {
+	constructor(x, y, w, h, r, txt, op, callback) {
+		// op is emitted operator, bgcolor is fixed
+		super(x, y, w, h, r, txt, symButtonColor, callback);
+		this.op = op;
+	}
+}
+
 class RoundRectNumDenButton extends RoundRectButton {
 	constructor(x, y, w, h, r, nd, bgcolor, callback) {
 		super(x, y, w, h, r, bgcolor, callback);
-		this.nd = nd;
+		this.nd = nd; // value NumDen
+		this.iscomposite = false; // true if nd is result of earlier calculation
 	}
 
 	draw(ctx) {
@@ -232,12 +249,15 @@ function gcd(a, b) {
 
 class NumDen {
 	constructor(a, b) {
+		// if only one param: copy constructor
 		this.set(a, b);
 	}
 
 	set(a, b) {
+		// if only one param (NumDen) --> copy
 		if (a instanceof NumDen) {
-			this.copy_from(a);
+			this.num = a.num;
+			this.den = a.den;
 		} else {
 			this.num = a;
 			if (b) {
@@ -246,11 +266,6 @@ class NumDen {
 				this.den = 1;
 			}
 		}
-	}
-
-	copy_from(other) {
-		this.num = other.num;
-		this.den = other.den;
 	}
 
 	toString() {
@@ -264,7 +279,7 @@ class NumDen {
 		this.den *= other.den;
 	}
 
-	nd_div(other) {
+	div(other) {
 		// this := this / other = this * (1/other)
 		this.num *= other.den;
 		this.den *= other.num;
@@ -315,10 +330,6 @@ function precedence(op) {
 }
 
 function onTokenEmitted(t) {
-	// store token in array
-	tokensEmitted.push(t);
-	setButtonStates(); // update buttons accordingly
-
 	// TODO: Error checking, e.g. keeping track of lastly processed token
 	if (t.num) {
 		// defined and true if t is number
@@ -362,6 +373,8 @@ function evalRPN() {
 	while (op_stack.length > 0) {
 		rpn_queue.push(op_stack.pop());
 	}
+	if (rpn_queue.length == 0) return null;
+
 	// now process rpn_queue
 	let res_stack = [];
 	for (const t of rpn_queue) {
@@ -376,7 +389,7 @@ function evalRPN() {
 			let v2 = res_stack.pop(); // NumDen
 			let v1 = res_stack.pop(); // NumDen
 			if (t.val == "*") v1.mul(v2);
-			else if (t.val == "/") v1.nd_div(v2);
+			else if (t.val == "/") v1.div(v2);
 			else if (t.val == "+") v1.add(v2);
 			else if (t.val == "-") v1.sub(v2);
 			else {
@@ -403,25 +416,24 @@ window.onload = function () {
 	midX = canvas.width / 2;
 	midY = canvas.height - 300; // middle of input button field
 	nrButtonColor = "red";
-	symButtonColor = "DarkBlue";
 	// prettier-ignore
 	nrButtons.push(
-		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(digits[0]), nrButtonColor, onNumClicked),
-		new RoundRectNumDenButton(midX + 80, midY - 80, 80, 80, 40, new NumDen(digits[1]), nrButtonColor, onNumClicked),
-		new RoundRectNumDenButton(midX - 80, midY + 80, 80, 80, 40, new NumDen(digits[2]), nrButtonColor, onNumClicked),
-		new RoundRectNumDenButton(midX + 80, midY + 80, 80, 80, 40, new NumDen(digits[3]), nrButtonColor, onNumClicked),
+		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
+		new RoundRectNumDenButton(midX + 80, midY - 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
+		new RoundRectNumDenButton(midX - 80, midY + 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
+		new RoundRectNumDenButton(midX + 80, midY + 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
 	);
 	// prettier-ignore
 	opButtons.push(
-		new RoundRectTextButton(midX, midY - 60, 60, 60, 20, "+", symButtonColor, onOperatorClicked),
-		new RoundRectTextButton(midX, midY + 60, 60, 60, 20, "-", symButtonColor, onOperatorClicked),
-		new RoundRectTextButton(midX - 60, midY, 60, 60, 20, "x", symButtonColor, onOperatorClicked),
-		new RoundRectTextButton(midX + 60, midY, 60, 60, 20, "÷", symButtonColor, onOperatorClicked),
+		new RoundRectOperatorButton(midX, midY - 60, 60, 60, 20, "+", "+", onOperatorClicked),
+		new RoundRectOperatorButton(midX, midY + 60, 60, 60, 20, "-", "-", onOperatorClicked),
+		new RoundRectOperatorButton(midX - 60, midY, 60, 60, 20, "x", "*", onOperatorClicked),
+		new RoundRectOperatorButton(midX + 60, midY, 60, 60, 20, "÷", "/", onOperatorClicked),
 	);
 	// prettier-ignore
 	bracketButtons.push(
-		new RoundRectTextButton(midX - 140, midY, 60, 60, 20, "(", symButtonColor, onBracketClicked),
-		new RoundRectTextButton(midX + 140, midY, 60, 60, 20, ")", symButtonColor, onBracketClicked),
+		new RoundRectOperatorButton(midX - 140, midY, 60, 60, 20, "(", "(", onBracketClicked),
+		new RoundRectOperatorButton(midX + 140, midY, 60, 60, 20, ")", ")", onBracketClicked),
 	);
 	// prettier-ignore
 	miscButtons.push(
@@ -441,15 +453,50 @@ window.onload = function () {
 		}
 	});
 
+	// init
 	buttonInit(); // sets en/disable of buttons
 	evalInit(); // init the eval data structures
+	lastResultButton = null;
 
 	requestAnimationFrame(gameloop);
 };
 
 function buttonInit() {
-	tokensEmitted = [];
+	// initialize buttons (values, enbl/disbl)
+	buttonsPressed = [];
+	for (let ii = 0; ii < digits.length; ++ii) {
+		nrButtons[ii].nd.set(digits[ii]);
+		nrButtons[ii].show();
+		nrButtons[ii].iscomposite = false;
+	}
 	setButtonStates();
+}
+
+function allNumbersUsed() {
+	// returns true if all nnButtons are hidden
+	for (b of nrButtons) {
+		if (b.visible) return false;
+	}
+	return true;
+}
+
+function relabelNrButton(res) {
+	// relables the first hidden button with res and shows it
+	// TODO: Kewl animation
+	// find first hidden button
+	let button = null;
+	for (b of nrButtons) {
+		if (!b.visible) {
+			button = b;
+			break;
+		}
+	}
+	if (button) {
+		button.nd.set(res);
+		button.iscomposite = true;
+		button.show();
+	}
+	return button;
 }
 
 // helper
@@ -459,23 +506,32 @@ function isOperatorToken(t) {
 }
 
 function setButtonStates() {
-	let last_token =
-		tokensEmitted.length > 0 ? tokensEmitted[tokensEmitted.length - 1] : null;
+	// Depending on previous clicks, determines enabled/disabled buttons
+	let lastButton =
+		buttonsPressed.length > 0
+			? buttonsPressed[buttonsPressed.length - 1]
+			: null;
+	let lastWasNr = lastButton instanceof RoundRectNumDenButton;
+	let lastWasComposite = lastWasNr && lastButton.iscomposite;
+	let lastWasOpOrBrack = lastButton instanceof RoundRectOperatorButton;
+	let lastWasOpenBrack = lastWasOpOrBrack && lastButton.op == "(";
+	let lastWasCloseBrack = lastWasOpOrBrack && lastButton.op == ")";
+	let lastWasOp = lastWasOpOrBrack && !lastWasOpenBrack && !lastWasCloseBrack;
 
-	let nrs_enable = true; // TODO: condition
-	if (last_token && !last_token.num && last_token.val == ")") {
-		nrs_enable = false;
-	}
+	// number buttons
+	let enable = !lastWasCloseBrack && !lastWasComposite; // TODO: condition
 	for (button of nrButtons) {
-		if (nrs_enable) {
+		// TODO: ternary? Or drop methods, and write to enable bit directly?
+		if (enable) {
 			button.enable();
 		} else {
 			button.disable();
 		}
 	}
-	let op_enable = last_token && (last_token.num || last_token.val == ")");
+	// operator buttons
+	enable = lastWasNr || lastWasCloseBrack || lastResultButton;
 	for (button of opButtons) {
-		if (op_enable) {
+		if (enable) {
 			button.enable();
 		} else {
 			button.disable();
@@ -483,84 +539,104 @@ function setButtonStates() {
 	}
 	// brackets
 	let bracket_depth = 0;
-	for (t of tokensEmitted) {
-		if (!t.num && t.val == "(") {
+	for (b of buttonsPressed) {
+		if (b instanceof RoundRectTextButton && b.txt == "=") {
+			bracket_depth = 0;
+		} else if (b instanceof RoundRectOperatorButton && b.op == "(") {
 			++bracket_depth;
-		} else if (!t.num && t.val == ")") {
+		} else if (b instanceof RoundRectOperatorButton && b.op == ")") {
 			--bracket_depth;
 		}
 	}
 	// open bracket:
-	let brack_enbl = bracket_depth < 3;
-	if (last_token && (last_token.num || last_token.val == ")")) {
-		brack_enbl = false;
-	}
-	if (brack_enbl) {
+	enbl = bracket_depth < 3 && !lastWasCloseBrack;
+	if (enbl) {
 		bracketButtons[0].enable();
 	} else {
 		bracketButtons[0].disable();
 	}
 	// closing bracket:
-	brack_enbl = bracket_depth > 0;
-	if (last_token && (isOperatorToken(last_token) || last_token.val == "(")) {
-		brack_enbl = false;
-	}
-	if (brack_enbl) {
+	enbl = bracket_depth > 0 && !lastWasOp && !lastWasOpenBrack;
+	if (enbl) {
 		bracketButtons[1].enable();
 	} else {
 		bracketButtons[1].disable();
 	}
+	// Equals button
+	enbl = bracket_depth == 0 && (lastWasNr || lastWasCloseBrack);
+	if (enbl) {
+		miscButtons[0].enable();
+	} else {
+		miscButtons[0].disable();
+	}
 }
 
 function onNumClicked(button) {
-	// special case: if this is first nr pressed, we empty expr box first
-	let last_token =
-		tokensEmitted.length > 0 ? tokensEmitted[tokensEmitted.length - 1] : null;
-	if (!last_token || (!last_token.num && last_token.val == "=")) {
-		exprBox.setText("");
-	}
-	let nd = new NumDen(button.nd); // copy the NumDen
-	exprBox.setText(exprBox.getText() + nd.toString());
+	buttonsPressed.push(button);
+	lastResultButton = null;
+
+	button.hide();
+
+	// emit token
+	let nd = new NumDen(button.nd); // copy the NumDen before emitting
 	onTokenEmitted({ num: true, val: nd });
+
+	exprBox.setText(exprBox.getText() + nd.toString());
+	setButtonStates(); // update buttons accordingly
 }
 
 function onOperatorClicked(button) {
-	// special case: if we press operator before anything else, and we use "Ans" as first nr
-	let ans = exprBox.getText();
-	if (tokensEmitted.length == 0) {
-		onTokenEmitted({ num: true, val: parseInt(ans) });
+	buttonsPressed.push(button);
+
+	// special case: if we press operator before anything else, and we use last result as first nr
+	if (lastResultButton) {
+		// assert: lastResultButton is of type RoundRectNumDenButton
+		let nd = new NumDen(lastResultButton.nd); // copy the NumDen before emitting
+		exprBox.setText(nd.toString());
+		onTokenEmitted({ num: true, val: nd });
+		lastResultButton.hide();
+		lastResultButton = null;
 	}
-	opstr = button.txt;
-	exprBox.setText(exprBox.getText() + " " + opstr + " ");
-	if (opstr == "x") {
-		opstr = "*";
-	} else if (opstr == "÷") {
-		opstr = "/";
-	}
-	onTokenEmitted({ num: false, val: opstr });
+	exprBox.setText(exprBox.getText() + " " + button.op + " ");
+	onTokenEmitted({ num: false, val: button.op });
+	setButtonStates(); // update buttons accordingly
 }
 
 function onBracketClicked(button) {
-	// special case: if this is first button pressed, we empty expr box first
-	if (tokensEmitted.length == 0) {
-		exprBox.setText("");
-	}
-	opstr = button.txt;
-	exprBox.setText(exprBox.getText() + opstr);
-	onTokenEmitted({ num: false, val: opstr });
+	buttonsPressed.push(button);
+	lastResultButton = null;
+
+	exprBox.setText(exprBox.getText() + button.op);
+	onTokenEmitted({ num: false, val: button.op });
+	setButtonStates(); // update buttons accordingly
 }
 
-
 function onEqualsClicked() {
+	buttonsPressed.push(button);
+
 	let res = evalRPN(); // NumDen
+	if (!res) return;
+
 	evalInit();
 	if (res.den == 0) {
-		exprBox.setText("Division by 0");
+		exprBox.setText("Division by 0"); // TODO: clear when starting new eq (exprBox err state?)
+		// init, start new expression
+		buttonInit(); // sets en/disable of buttons
+		evalInit(); // init the eval data structures
+		lastResultButton = null;
+		// TODO: test this case
 	} else {
 		exprBox.setText(res.toString());
+		// two cases: all nrs are used, or not
+		if (allNumbersUsed()) {
+			// TODO: implement
+		} else {
+			exprBox.setText("");
+			lastResultButton = relabelNrButton(res);
+		}
 	}
 	console.log(res.toString());
-	tokensEmitted.push( { num:false, val:"=" } ); // FIXME: this is a hack for now
+	setButtonStates(); // update buttons accordingly
 }
 
 function gameloop() {
