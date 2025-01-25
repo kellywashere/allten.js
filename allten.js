@@ -1,5 +1,4 @@
 // TODO: backspace
-// TODO: composite bg color
 // TODO: Solved buttons. When clicked, show sol in text UI
 // TODO: Error state of middle text box
 //
@@ -30,6 +29,9 @@ let digits = [4, 6, 8, 8];
 const font_family = "Arial";
 const symButtonColor = "DarkBlue";
 const solvedButtonColor = "YellowGreen";
+const nrButtonColor = "Red";
+const compositeButtonColor = "MediumVioletRed";
+
 /*
 function drawCircle(ctx, x, y, r, fillcolor, strokecolor) {
 	ctx.beginPath();
@@ -64,12 +66,16 @@ class RoundRectButton {
 		this.w = w;
 		this.h = h;
 		this.r = r;
-		if (bgcolor) this.bgcolor = bgcolor;
-		else this.bgcolor = "DarkBlue";
+		this.setBGcolor(bgcolor);
 
 		this.callback = callback;
 		this.enabled = true;
 		this.visible = true;
+	}
+
+	setBGcolor(bgcolor) {
+		if (bgcolor) this.bgcolor = bgcolor;
+		else this.bgcolor = "DarkBlue";
 	}
 
 	enable() {
@@ -145,15 +151,15 @@ class RoundRectTextButton extends RoundRectButton {
 
 class RoundRectOperatorButton extends RoundRectTextButton {
 	constructor(x, y, w, h, r, txt, op, callback) {
-		// op is emitted operator, bgcolor is fixed
+		// txt is displayed, op is emitted operator, bgcolor is fixed
 		super(x, y, w, h, r, txt, symButtonColor, callback);
 		this.op = op;
 	}
 }
 
 class RoundRectNumDenButton extends RoundRectButton {
-	constructor(x, y, w, h, r, nd, bgcolor, callback) {
-		super(x, y, w, h, r, bgcolor, callback);
+	constructor(x, y, w, h, r, nd, callback) {
+		super(x, y, w, h, r, nrButtonColor, callback);
 		this.nd = nd; // value NumDen
 		this.iscomposite = false; // true if nd is result of earlier calculation
 		// TODO: equation:
@@ -161,6 +167,7 @@ class RoundRectNumDenButton extends RoundRectButton {
 	}
 
 	draw(ctx) {
+		this.bgcolor = this.iscomposite ? compositeButtonColor : nrButtonColor;
 		super.draw(ctx); // path can now be used for clipping
 		// draw centered NumDen
 		ctx.save();
@@ -442,10 +449,10 @@ window.onload = function () {
 	// TODO: make next part a function
 	// prettier-ignore
 	nrButtons.push(
-		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
-		new RoundRectNumDenButton(midX + 80, midY - 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
-		new RoundRectNumDenButton(midX - 80, midY + 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
-		new RoundRectNumDenButton(midX + 80, midY + 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
+		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), onNumClicked),
+		new RoundRectNumDenButton(midX + 80, midY - 80, 80, 80, 40, new NumDen(), onNumClicked),
+		new RoundRectNumDenButton(midX - 80, midY + 80, 80, 80, 40, new NumDen(), onNumClicked),
+		new RoundRectNumDenButton(midX + 80, midY + 80, 80, 80, 40, new NumDen(), onNumClicked),
 	);
 	// prettier-ignore
 	opButtons.push(
