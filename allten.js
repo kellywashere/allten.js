@@ -1,7 +1,3 @@
-// TODO: concat
-// TODO: make token a class too?
-// TODO: add property "composite" to token
-// TODO: equals button enbl/disl
 // TODO: backspace
 // TODO: composite bg color
 
@@ -275,26 +271,34 @@ class NumDen {
 
 	mul(other) {
 		// this := this * other
-		this.num *= other.num;
-		this.den *= other.den;
+		if (other instanceof NumDen) {
+			this.num *= other.num;
+			this.den *= other.den;
+		} else this.num *= other;
 	}
 
 	div(other) {
 		// this := this / other = this * (1/other)
-		this.num *= other.den;
-		this.den *= other.num;
+		if (other instanceof NumDen) {
+			this.num *= other.den;
+			this.den *= other.num;
+		} else this.den *= other;
 	}
 
 	add(other) {
 		// this := this + other
-		this.num = this.num * other.den + this.den * other.num;
-		this.den *= other.den;
+		if (other instanceof NumDen) {
+			this.num = this.num * other.den + this.den * other.num;
+			this.den *= other.den;
+		} else this.num += this.den * other;
 	}
 
 	sub(other) {
 		// this := this - other
-		this.num = this.num * other.den - this.den * other.num;
-		this.den *= other.den;
+		if (other instanceof NumDen) {
+			this.num = this.num * other.den - this.den * other.num;
+			this.den *= other.den;
+		} else this.num -= this.den * other;
 	}
 
 	simplify() {
@@ -325,6 +329,7 @@ function evalInit() {
 function precedence(op) {
 	if (op == "+" || op == "-") return 1;
 	if (op == "*" || op == "/") return 2;
+	if (op == "c") return 3; // concat operator
 	console.log("Unexpected operator " + op);
 	return -1;
 }
@@ -375,6 +380,8 @@ function evalRPN() {
 	}
 	if (rpn_queue.length == 0) return null;
 
+	// console.log(rpn_queue);
+
 	// now process rpn_queue
 	let res_stack = [];
 	for (const t of rpn_queue) {
@@ -388,7 +395,12 @@ function evalRPN() {
 			}
 			let v2 = res_stack.pop(); // NumDen
 			let v1 = res_stack.pop(); // NumDen
-			if (t.val == "*") v1.mul(v2);
+			if (t.val == "c") {
+				// concat
+				// assert: v1.den == v2.den == 1
+				v1.mul(10);
+				v1.add(v2);
+			} else if (t.val == "*") v1.mul(v2);
 			else if (t.val == "/") v1.div(v2);
 			else if (t.val == "+") v1.add(v2);
 			else if (t.val == "-") v1.sub(v2);
@@ -415,7 +427,7 @@ window.onload = function () {
 
 	midX = canvas.width / 2;
 	midY = canvas.height - 300; // middle of input button field
-	nrButtonColor = "red";
+	let nrButtonColor = "red";
 	// prettier-ignore
 	nrButtons.push(
 		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), nrButtonColor, onNumClicked),
@@ -572,10 +584,24 @@ function setButtonStates() {
 }
 
 function onNumClicked(button) {
+	// remember last button, to see if we need to concat
+	let lastButton =
+		buttonsPressed.length > 0
+			? buttonsPressed[buttonsPressed.length - 1]
+			: null;
+
 	buttonsPressed.push(button);
 	lastResultButton = null;
 
 	button.hide();
+
+	// Concat?
+	let lastWasNr = lastButton instanceof RoundRectNumDenButton;
+	let lastWasComposite = lastWasNr && lastButton.iscomposite;
+	if (lastWasNr && !lastWasComposite) {
+		// concat
+		onTokenEmitted({ num: false, val: "c" }); // special operator c for concat
+	}
 
 	// emit token
 	let nd = new NumDen(button.nd); // copy the NumDen before emitting
