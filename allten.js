@@ -1,6 +1,6 @@
 // TODO: backspace
+// TODO: all clear
 // TODO: Solved buttons. When clicked, show sol in text UI
-// TODO: Error state of middle text box. Also, add a "correct" state
 // TODO: Do not run gameloop when no animation active
 
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
@@ -12,8 +12,9 @@ let ctx; // drawing context
 let nrButtons = [];
 let opButtons = [];
 let bracketButtons = [];
-let miscButtons = [];
-
+let equalsButton = null;
+let acButton = null; // all clear
+let backButton = null; // backspace
 let solvedButtons = [];
 
 let allButtons = []; // convenience: array of all buttons
@@ -33,6 +34,7 @@ const symButtonColor = "DarkBlue";
 const solvedButtonColor = "YellowGreen";
 const nrButtonColor = "Red";
 const compositeButtonColor = "MediumVioletRed";
+const acbackButtonColor = "Red";
 
 /*
 function drawCircle(ctx, x, y, r, fillcolor, strokecolor) {
@@ -47,6 +49,46 @@ function drawCircle(ctx, x, y, r, fillcolor, strokecolor) {
 	}
 }
 */
+
+function fillCenteredText(ctx, text, x, y) {
+	// truly centered text
+	const textMetrics = ctx.measureText(text);
+	const xa = textMetrics.actualBoundingBoxLeft;
+	const xb = textMetrics.actualBoundingBoxRight;
+	const ya = textMetrics.actualBoundingBoxAscent;
+	const yb = textMetrics.actualBoundingBoxDescent;
+
+	const xc = x + (xa - xb) / 2; // x for centering
+	const yc = y + (ya - yb) / 2; // y for centering
+
+	ctx.fillText(text, xc, yc);
+}
+
+function fillFraction(ctx, num, den, x, y) {
+	// centered fraction
+	let textMetrics = ctx.measureText(num.toString());
+	let xa = textMetrics.actualBoundingBoxLeft;
+	let xb = textMetrics.actualBoundingBoxRight;
+	let ya = textMetrics.actualBoundingBoxAscent;
+	let yb = textMetrics.actualBoundingBoxDescent;
+	const w_num = xa + xb;
+	let h = ya + yb;
+	ctx.fillText(num.toString(), x + (xa - xb) / 2, y - yb - h / 4);
+	textMetrics = ctx.measureText(den.toString());
+	xa = textMetrics.actualBoundingBoxLeft;
+	xb = textMetrics.actualBoundingBoxRight;
+	ya = textMetrics.actualBoundingBoxAscent;
+	yb = textMetrics.actualBoundingBoxDescent;
+	const w_den = xa + xb;
+	ctx.fillText(den.toString(), x + (xa - xb) / 2, y + ya + h / 4);
+	// line
+	// measure width of a zero, to use as a unit for line extension
+	textMetrics = ctx.measureText("0");
+	const w0 =
+		textMetrics.actualBoundingBoxLeft + textMetrics.actualBoundingBoxRight;
+	const w = w_num > w_den ? w_num : w_den;
+	ctx.fillRect(x - w / 2 - w0 / 4, y - 1, w + w0 / 2, 2);
+}
 
 // ====================== Button =================================
 
@@ -141,12 +183,12 @@ class RoundRectTextButton extends RoundRectButton {
 		// draw centered text
 		ctx.save();
 		ctx.clip();
-		let fontsize = (this.h * 3) / 4;
+		let fontsize = this.h / 2;
 		ctx.font = fontsize.toString() + "px " + font_family;
 		ctx.fillStyle = "white";
 		ctx.textBaseline = "middle";
 		ctx.textAlign = "center";
-		ctx.fillText(this.txt, this.x, this.y);
+		fillCenteredText(ctx, this.txt, this.x, this.y);
 		ctx.restore(); // remove clip
 	}
 }
@@ -177,18 +219,14 @@ class RoundRectNumDenButton extends RoundRectButton {
 		ctx.fillStyle = "white";
 		ctx.textAlign = "center";
 		if (this.nd.den == 1) {
-			let fontsize = (this.h * 3) / 4;
+			let fontsize = this.h / 2;
 			ctx.font = fontsize.toString() + "px " + font_family;
 			ctx.textBaseline = "middle";
-			ctx.fillText(this.nd.num.toString(), this.x, this.y);
+			fillCenteredText(ctx, this.nd.num.toString(), this.x, this.y);
 		} else {
 			let fontsize = (this.h * 5) / 12;
 			ctx.font = fontsize.toString() + "px " + font_family;
-			ctx.textBaseline = "bottom";
-			ctx.fillText(this.nd.num.toString(), this.x, this.y);
-			ctx.textBaseline = "top";
-			ctx.fillText(this.nd.den.toString(), this.x, this.y);
-			ctx.fillRect(this.x - this.w / 4, this.y - 1, this.w / 2, 2);
+			fillFraction(ctx, this.nd.num, this.nd.den, this.x, this.y);
 		}
 		ctx.restore(); // remove clip
 	}
@@ -495,9 +533,16 @@ window.onload = function () {
 		new RoundRectOperatorButton(midX + 140, midY, 60, 60, 20, ")", ")", onBracketClicked),
 	);
 	// prettier-ignore
-	miscButtons.push(
-		new RoundRectTextButton(midX, midY + 200, 80, 80, 20, "=", symButtonColor, onEqualsClicked)
-	);
+	equalsButton =
+		new RoundRectTextButton(midX, midY + 200, 80, 80, 20, "=", symButtonColor, onEqualsClicked);
+	// prettier-ignore
+	acButton =
+		new RoundRectTextButton(midX - 140, midY + 200, 80, 80, 20, "AC", acbackButtonColor, onAcClicked);
+	// prettier-ignore
+	backButton =
+		new RoundRectTextButton(midX + 140, midY + 200, 80, 80, 20, "⌫", acbackButtonColor, onBackClicked);
+
+	// solved buttons
 	for (let ii = 0; ii < 5; ++ii) {
 		// prettier-ignore
 		solvedButtons.push(
@@ -516,8 +561,10 @@ window.onload = function () {
 	allButtons = nrButtons.concat(
 		opButtons,
 		bracketButtons,
-		miscButtons,
 		solvedButtons,
+		equalsButton,
+		acButton,
+		backButton,
 	);
 
 	exprBox = new TextBox(midX, midY - 180, 400, 40, "black", "#aaaaaa");
@@ -646,9 +693,9 @@ function setButtonStates() {
 	// Equals button
 	enbl = bracket_depth == 0 && (lastWasNr || lastWasCloseBrack);
 	if (enbl) {
-		miscButtons[0].enable();
+		equalsButton.enable();
 	} else {
-		miscButtons[0].disable();
+		equalsButton.disable();
 	}
 }
 
@@ -770,6 +817,10 @@ function onEqualsClicked() {
 	exprBoxToBeCleared = true; // next button will clear display
 	setButtonStates(); // update buttons accordingly
 }
+
+function onAcClicked() {}
+
+function onBackClicked() {}
 
 function onSolutionClicked(button) {
 	// TODO: Show expression in display
