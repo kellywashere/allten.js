@@ -1,7 +1,8 @@
 // TODO: backspace
 // TODO: Solved buttons. When clicked, show sol in text UI
-// TODO: Error state of middle text box
-//
+// TODO: Error state of middle text box. Also, add a "correct" state
+// TODO: Do not run gameloop when no animation active
+
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
 let canvas;
@@ -18,6 +19,7 @@ let solvedButtons = [];
 let allButtons = []; // convenience: array of all buttons
 
 let exprBox;
+let exprBoxToBeCleared = false; // set to true when next button should clear text box
 
 // STATE variables
 // keeps track of all buttons pressed (backspace, button states)
@@ -202,13 +204,11 @@ class TextBox {
 		this.h = h;
 		this.txt = "";
 
-		if (fgcolor) this.fgcolor = fgcolor;
-		else this.fgcolor = "black";
-
-		if (bgcolor) this.bgcolor = bgcolor;
-		else this.bgcolor = "#777777";
+		this.setFGcolor(fgcolor);
+		this.setBGcolor(bgcolor);
 
 		this.enabled = true;
+		this.state = 0; // 0: neutral, 1: correct (green), -1: error (red)
 	}
 
 	setText(txt) {
@@ -217,6 +217,28 @@ class TextBox {
 
 	getText() {
 		return this.txt;
+	}
+
+	setFGcolor(fgcolor) {
+		if (fgcolor) this.fgcolor = fgcolor;
+		else this.fgcolor = "black";
+	}
+
+	setBGcolor(bgcolor) {
+		if (bgcolor) this.bgcolor = bgcolor;
+		else this.bgcolor = "#777777";
+	}
+
+	setNeutralState() {
+		this.state = 0;
+	}
+
+	setErrorState() {
+		this.state = -1;
+	}
+
+	setCorrectState() {
+		this.state = 1;
 	}
 
 	draw(ctx) {
@@ -228,7 +250,13 @@ class TextBox {
 			this.h,
 			this.h / 2,
 		);
-		ctx.fillStyle = this.bgcolor;
+		if (this.state == 1) {
+			ctx.fillStyle = "YellowGreen";
+		} else if (this.state == -1) {
+			ctx.fillStyle = "Tomato";
+		} else {
+			ctx.fillStyle = this.bgcolor;
+		}
 		ctx.fill();
 		ctx.save();
 		ctx.clip();
@@ -630,6 +658,12 @@ function showSolution(sol) {
 }
 
 function onNumClicked(button) {
+	if (exprBoxToBeCleared) {
+		exprBox.setText("");
+		exprBox.setNeutralState();
+		exprBoxToBeCleared = false;
+	}
+
 	// remember last button, to see if we need to concat
 	let lastButton =
 		buttonsPressed.length > 0
@@ -659,6 +693,11 @@ function onNumClicked(button) {
 
 function onOperatorClicked(button) {
 	buttonsPressed.push(button);
+	if (exprBoxToBeCleared) {
+		exprBox.setText("");
+		exprBox.setNeutralState();
+		exprBoxToBeCleared = false;
+	}
 
 	// special case: if we press operator before anything else, and we use last result as first nr
 	if (lastResultButton) {
@@ -675,8 +714,15 @@ function onOperatorClicked(button) {
 }
 
 function onBracketClicked(button) {
+	if (exprBoxToBeCleared) {
+		exprBox.setText("");
+		exprBox.setNeutralState();
+		exprBoxToBeCleared = false;
+	}
+
 	buttonsPressed.push(button);
 	lastResultButton = null;
+	exprBox.setFGcolor("black");
 
 	exprBox.setText(exprBox.getText() + button.op);
 	onTokenEmitted({ num: false, val: button.op });
@@ -695,7 +741,7 @@ function onEqualsClicked() {
 	evalInit();
 	if (res.den == 0) {
 		exprBox.setText("Division by 0"); // TODO: clear when starting new eq (exprBox err state?)
-		// TODO: test this case
+		exprBox.setErrorState();
 	} else {
 		exprBox.setText(res.toString());
 		// two cases: all nrs are used, or not
@@ -703,12 +749,12 @@ function onEqualsClicked() {
 			// check solution
 			if (res.den == 1 && res.num >= 1 && res.num <= 10) {
 				showSolution(res.num);
-				exprBox.setText(""); // TODO: or show in green?
+				exprBox.setCorrectState();
 			} else {
-				// TODO: Error state
+				exprBox.setErrorState();
 			}
 		} else {
-			// only way reset becomes false
+			// intermed result, only way reset becomes false
 			exprBox.setText("");
 			lastResultButton = relabelNrButton(res);
 			reset = false; // keep going...
@@ -721,10 +767,12 @@ function onEqualsClicked() {
 		lastResultButton = null;
 	}
 
+	exprBoxToBeCleared = true; // next button will clear display
 	setButtonStates(); // update buttons accordingly
 }
 
 function onSolutionClicked(button) {
+	// TODO: Show expression in display
 	let solClicked = parseInt(button.txt);
 	console.log("Solution " + solClicked);
 }
