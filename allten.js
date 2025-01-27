@@ -818,7 +818,14 @@ function onEqualsClicked() {
 	setButtonStates(); // update buttons accordingly
 }
 
-function onAcClicked() {}
+function onAcClicked() {
+	// init, start new expression
+	buttonInit(); // sets en/disable of buttons
+	evalInit(); // already done at start of fn
+	lastResultButton = null;
+	exprBox.setText("");
+	exprBox.setNeutralState();
+}
 
 function onBackClicked() {}
 
