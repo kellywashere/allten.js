@@ -1,12 +1,15 @@
 // TODO: backspace
-// TODO: all clear
 // TODO: Solved buttons. When clicked, show sol in text UI
 // TODO: Do not run gameloop when no animation active
+// TODO: pick a valid puzzle at random
 
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
-let canvas;
-let ctx; // drawing context
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+
+let canvasW; // used to allow resize, prev size
+let canvasH;
 
 // UI elements
 let nrButtons = [];
@@ -27,6 +30,7 @@ let exprBoxToBeCleared = false; // set to true when next button should clear tex
 let buttonsPressed = [];
 let lastResultButton = null; // used for intermediate results
 
+// TODO: do not hardcode this ;)
 let digits = [4, 6, 8, 8];
 
 const font_family = "Arial";
@@ -503,16 +507,12 @@ function evalRPN() {
 	return res_stack.pop();
 }
 
-window.onload = function () {
-	canvas = document.getElementById("board");
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	ctx = canvas.getContext("2d");
-
+function generateUIelements() {
 	midX = canvas.width / 2;
 	midY = canvas.height - 300; // middle of input button field
-	let nrButtonColor = "red";
-	// TODO: make next part a function
+
+	console.log("midX = " + midX + ", midY = " + midY);
+
 	// prettier-ignore
 	nrButtons.push(
 		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), onNumClicked),
@@ -568,6 +568,42 @@ window.onload = function () {
 	);
 
 	exprBox = new TextBox(midX, midY - 180, 400, 40, "black", "#aaaaaa");
+}
+
+function moveUIelements(dx, dy) {
+	// on resize
+	for (b of allButtons) {
+		b.x += dx;
+		b.y += dy;
+	}
+	exprBox.x += dx;
+	exprBox.y += dy;
+}
+
+function resizeCanvas() {
+	// prev size: canvasW, canvasH
+	console.log("Resize");
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+
+	let dx = canvas.width / 2 - canvasW / 2;
+	let dy = canvas.height - canvasH;
+	moveUIelements(dx, dy);
+
+	canvasW = canvas.width;
+	canvasH = canvas.height;
+}
+
+window.onload = function () {
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	// rememver size to allow moving UI elements on resize
+	canvasW = canvas.width;
+	canvasH = canvas.height;
+
+	generateUIelements();
+
+	window.addEventListener("resize", resizeCanvas); // TODO: move buttons
 
 	// Mouse listener, takes care of all input events
 	canvas.addEventListener("click", function (e) {
