@@ -652,7 +652,7 @@ window.onload = function () {
 	// Mouse listener, takes care of all input events
 	canvas.addEventListener("click", function (e) {
 		for (const button of allButtons) {
-			if (button.isInButton(e.offsetX, e.offsetY)) {
+			if (button.isInButton(e.offsetX * dpr, e.offsetY * dpr)) {
 				button.clicked();
 			}
 		}
