@@ -1,15 +1,15 @@
+// TODO: Disable = button when only one button was pressed before
 // TODO: Do not run gameloop when no animation active
 // TODO: pick a valid puzzle at random
 // TODO: aspect ratio (phone)
 // TODO: canvas scaling (phone)
 
+// FIXME: Bug in Shunting Yard Algo 8 - 6 - 4 for example
+
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
-
-let canvasW; // used to allow resize, prev size
-let canvasH;
 
 // UI elements
 let nrButtons = [];
@@ -42,20 +42,6 @@ const solvedButtonColor = "YellowGreen";
 const nrButtonColor = "Red";
 const compositeButtonColor = "MediumVioletRed";
 const acbackButtonColor = "Red";
-
-/*
-function drawCircle(ctx, x, y, r, fillcolor, strokecolor) {
-	ctx.beginPath();
-	ctx.arc(x, y, r, 0, 2 * Math.PI);
-	ctx.fillStyle = fillcolor;
-	ctx.fill();
-	if (strokecolor) {
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = strokecolor;
-		ctx.stroke();
-	}
-}
-*/
 
 function fillCenteredText(ctx, text, x, y) {
 	// truly centered text
@@ -111,22 +97,30 @@ function pointInCircle(x, y, xc, yc, rc) {
 }
 
 class RoundRectButton {
-	constructor(x, y, w, h, r, bgcolor, callback) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
-		this.r = r;
+	constructor(callback, x, y, w, h, r, bgcolor) {
+		this.callback = callback;
+
+		this.setPos(x, y);
+		this.setSize(w, h, r);
 		this.setBGcolor(bgcolor);
 
-		this.callback = callback;
 		this.enabled = true;
 		this.visible = true;
 	}
 
+	setPos(x, y) {
+		this.x = x || 0;
+		this.y = y || 0;
+	}
+
+	setSize(w, h, r) {
+		this.w = w || 0;
+		this.h = h || 0;
+		this.r = r || 0;
+	}
+
 	setBGcolor(bgcolor) {
-		if (bgcolor) this.bgcolor = bgcolor;
-		else this.bgcolor = "DarkBlue";
+		this.bgcolor = bgcolor || "DarkBlue";
 	}
 
 	enable() {
@@ -179,8 +173,8 @@ class RoundRectButton {
 }
 
 class RoundRectTextButton extends RoundRectButton {
-	constructor(x, y, w, h, r, txt, bgcolor, callback) {
-		super(x, y, w, h, r, bgcolor, callback);
+	constructor(callback, txt, x, y, w, h, r, bgcolor) {
+		super(callback, x, y, w, h, r, bgcolor || symButtonColor);
 		this.txt = txt;
 	}
 
@@ -201,23 +195,23 @@ class RoundRectTextButton extends RoundRectButton {
 }
 
 class RoundRectOperatorButton extends RoundRectTextButton {
-	constructor(x, y, w, h, r, txt, op, callback) {
+	constructor(callback, txt, op, x, y, w, h, r) {
 		// txt is displayed, op is emitted operator, bgcolor is fixed
-		super(x, y, w, h, r, txt, symButtonColor, callback);
+		super(callback, txt, x, y, w, h, r, symButtonColor);
 		this.op = op;
 	}
 }
 
 class RoundRectSolvedButton extends RoundRectTextButton {
-	constructor(x, y, w, h, r, txt, bgcolor, callback) {
-		super(x, y, w, h, r, txt, bgcolor, callback);
+	constructor(callback, txt, x, y, w, h, r) {
+		super(callback, txt, x, y, w, h, r, solvedButtonColor);
 		this.expression = null; // the solution string
 	}
 }
 
 class RoundRectNumDenButton extends RoundRectButton {
-	constructor(x, y, w, h, r, nd, callback) {
-		super(x, y, w, h, r, nrButtonColor, callback);
+	constructor(callback, nd, x, y, w, h, r) {
+		super(callback, x, y, w, h, r, nrButtonColor);
 		this.nd = nd; // value NumDen
 		this.iscomposite = false; // true if nd is result of earlier calculation
 		this.equation = ""; // for composite: equation how this was reached
@@ -249,10 +243,8 @@ class RoundRectNumDenButton extends RoundRectButton {
 
 class TextBox {
 	constructor(x, y, w, h, fgcolor, bgcolor) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
+		this.setPos(x, y);
+		this.setSize(w, h);
 		this.txt = "";
 
 		this.setFGcolor(fgcolor);
@@ -260,6 +252,16 @@ class TextBox {
 
 		this.enabled = true;
 		this.state = 0; // 0: neutral, 1: correct (green), -1: error (red)
+	}
+
+	setPos(x, y) {
+		this.x = x || 0;
+		this.y = y || 0;
+	}
+
+	setSize(w, h) {
+		this.w = w || 0;
+		this.h = h || 0;
 	}
 
 	setText(txt) {
@@ -516,54 +518,91 @@ function evalRPN() {
 	return res_stack.pop();
 }
 
-function generateUIelements() {
-	midX = canvas.width / 2;
-	midY = canvas.height - 300; // middle of input button field
+function placeUIelements() {
+	let midX = canvas.width / 2;
+	let h = canvas.height;
 
-	// prettier-ignore
+	nrButtons[0].setPos(midX - h * 0.085, h * (0.675 - 0.085));
+	nrButtons[1].setPos(midX + h * 0.085, h * (0.675 - 0.085));
+	nrButtons[2].setPos(midX - h * 0.085, h * (0.675 + 0.085));
+	nrButtons[3].setPos(midX + h * 0.085, h * (0.675 + 0.085));
+
+	opButtons[0].setPos(midX, h * (0.675 - 0.065));
+	opButtons[1].setPos(midX, h * (0.675 + 0.065));
+	opButtons[2].setPos(midX - h * 0.065, h * 0.675);
+	opButtons[3].setPos(midX + h * 0.065, h * 0.675);
+
+	bracketButtons[0].setPos(midX - h * 0.152, h * 0.675);
+	bracketButtons[1].setPos(midX + h * 0.152, h * 0.675);
+
+	equalsButton.setPos(midX, h * (0.675 + 0.22));
+	acButton.setPos(midX - h * 0.152, h * (0.675 + 0.22));
+	backButton.setPos(midX + h * 0.152, h * (0.675 + 0.22));
+
+	for (let ii = 0; ii < 5; ++ii) {
+		solvedButtons[ii].setPos(midX + (ii - 2) * h * 0.085, h * 0.31);
+	}
+	for (let ii = 0; ii < 5; ++ii) {
+		solvedButtons[ii + 5].setPos(midX + (ii - 2) * h * 0.085, h * 0.395);
+	}
+	exprBox.setPos(midX, h * 0.48);
+}
+
+function sizeUIelements() {
+	//let w = canvas.width;
+	let h = canvas.height;
+
+	for (b of nrButtons) {
+		b.setSize(h * 0.085, h * 0.085, (h * 0.085) / 2);
+	}
+	for (b of opButtons.concat(bracketButtons)) {
+		b.setSize(h * 0.065, h * 0.065, (h * 0.065) / 3);
+	}
+	equalsButton.setSize(h * 0.085, h * 0.085, (h * 0.085) / 4);
+	acButton.setSize(h * 0.085, h * 0.085, (h * 0.085) / 4);
+	backButton.setSize(h * 0.085, h * 0.085, (h * 0.085) / 4);
+
+	for (b of solvedButtons) {
+		b.setSize(h * 0.065, h * 0.065, (h * 0.065) / 4);
+	}
+	exprBox.setSize(h * 0.43, h * 0.043);
+}
+
+function generateUIelements() {
+	// placing and sizing is separated to ease implementation of aspect ratio change and resize
 	nrButtons.push(
-		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), onNumClicked),
-		new RoundRectNumDenButton(midX + 80, midY - 80, 80, 80, 40, new NumDen(), onNumClicked),
-		new RoundRectNumDenButton(midX - 80, midY + 80, 80, 80, 40, new NumDen(), onNumClicked),
-		new RoundRectNumDenButton(midX + 80, midY + 80, 80, 80, 40, new NumDen(), onNumClicked),
+		new RoundRectNumDenButton(onNumClicked, new NumDen()),
+		new RoundRectNumDenButton(onNumClicked, new NumDen()),
+		new RoundRectNumDenButton(onNumClicked, new NumDen()),
+		new RoundRectNumDenButton(onNumClicked, new NumDen()),
 	);
-	// prettier-ignore
 	opButtons.push(
-		new RoundRectOperatorButton(midX, midY - 60, 60, 60, 20, "+", "+", onOperatorClicked),
-		new RoundRectOperatorButton(midX, midY + 60, 60, 60, 20, "-", "-", onOperatorClicked),
-		new RoundRectOperatorButton(midX - 60, midY, 60, 60, 20, "x", "*", onOperatorClicked),
-		new RoundRectOperatorButton(midX + 60, midY, 60, 60, 20, "÷", "/", onOperatorClicked),
+		new RoundRectOperatorButton(onOperatorClicked, "+", "+"),
+		new RoundRectOperatorButton(onOperatorClicked, "-", "-"),
+		new RoundRectOperatorButton(onOperatorClicked, "x", "*"),
+		new RoundRectOperatorButton(onOperatorClicked, "÷", "/"),
 	);
-	// prettier-ignore
 	bracketButtons.push(
-		new RoundRectOperatorButton(midX - 140, midY, 60, 60, 20, "(", "(", onBracketClicked),
-		new RoundRectOperatorButton(midX + 140, midY, 60, 60, 20, ")", ")", onBracketClicked),
+		new RoundRectOperatorButton(onBracketClicked, "(", "("),
+		new RoundRectOperatorButton(onBracketClicked, ")", ")"),
 	);
 	// prettier-ignore
-	equalsButton =
-		new RoundRectTextButton(midX, midY + 200, 80, 80, 20, "=", symButtonColor, onEqualsClicked);
+	equalsButton = new RoundRectTextButton(onEqualsClicked, "=");
 	// prettier-ignore
-	acButton =
-		new RoundRectTextButton(midX - 140, midY + 200, 80, 80, 20, "AC", acbackButtonColor, onAcClicked);
+	acButton = new RoundRectTextButton(onAcClicked, "AC", 0, 0, 0, 0, 0, acbackButtonColor);
 	// prettier-ignore
-	backButton =
-		new RoundRectTextButton(midX + 140, midY + 200, 80, 80, 20, "⌫", acbackButtonColor, onBackClicked);
+	backButton = new RoundRectTextButton(onBackClicked, "⌫", 0, 0, 0, 0, 0, acbackButtonColor);
 
 	// solved buttons
-	for (let ii = 0; ii < 5; ++ii) {
+	for (let ii = 1; ii <= 10; ++ii) {
 		// prettier-ignore
-		solvedButtons.push(
-			new RoundRectSolvedButton(midX + (ii - 2) * 80, midY - 340, 60, 60, 14,
-				(ii + 1).toString(), solvedButtonColor, onSolutionClicked)
-		);
+		solvedButtons.push(new RoundRectSolvedButton(onSolutionClicked, ii.toString()));
 	}
-	for (let ii = 0; ii < 5; ++ii) {
-		// prettier-ignore
-		solvedButtons.push(
-			new RoundRectSolvedButton(midX + (ii - 2) * 80, midY - 340 + 80, 60, 60, 14,
-				(ii + 6).toString(), solvedButtonColor, onSolutionClicked)
-		);
-	}
+
+	exprBox = new TextBox(0, 0, 0, 0, "black", "#aaaaaa");
+
+	placeUIelements();
+	sizeUIelements();
 
 	allButtons = nrButtons.concat(
 		opButtons,
@@ -573,39 +612,21 @@ function generateUIelements() {
 		acButton,
 		backButton,
 	);
-
-	exprBox = new TextBox(midX, midY - 180, 400, 40, "black", "#aaaaaa");
-}
-
-function moveUIelements(dx, dy) {
-	// on resize
-	for (b of allButtons) {
-		b.x += dx;
-		b.y += dy;
-	}
-	exprBox.x += dx;
-	exprBox.y += dy;
 }
 
 function resizeCanvas() {
-	// prev size: canvasW, canvasH
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
+	const dpr = window.devicePixelRatio || 1;
+	canvas.width = window.innerWidth * dpr;
+	canvas.height = window.innerHeight * dpr;
 
-	let dx = canvas.width / 2 - canvasW / 2;
-	let dy = canvas.height - canvasH;
-	moveUIelements(dx, dy);
-
-	canvasW = canvas.width;
-	canvasH = canvas.height;
+	placeUIelements();
+	sizeUIelements();
 }
 
 window.onload = function () {
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	// rememver size to allow moving UI elements on resize
-	canvasW = canvas.width;
-	canvasH = canvas.height;
+	const dpr = window.devicePixelRatio || 1;
+	canvas.width = window.innerWidth * dpr;
+	canvas.height = window.innerHeight * dpr;
 
 	generateUIelements();
 
