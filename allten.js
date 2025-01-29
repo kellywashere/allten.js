@@ -2,9 +2,6 @@
 // TODO: Do not run gameloop when no animation active
 // TODO: pick a valid puzzle at random
 // TODO: aspect ratio (phone)
-// TODO: canvas scaling (phone)
-
-// FIXME: Bug in Shunting Yard Algo 8 - 6 - 4 for example
 
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
@@ -421,13 +418,11 @@ function evalInit() {
 
 // helper
 function precedence(op) {
-	// Shunting Yard algo goes wrong if prec of + and - are same
-	// for example in 4 - 8 + 8 case
 	if (op == "+") return 1;
-	if (op == "-") return 2;
-	if (op == "*") return 3;
-	if (op == "/") return 4;
-	if (op == "c") return 5;
+	if (op == "-") return 1;
+	if (op == "*") return 2;
+	if (op == "/") return 2;
+	if (op == "c") return 3;
 	console.log("Unexpected operator " + op);
 	return -1;
 }
@@ -451,7 +446,7 @@ function onTokenEmitted(t) {
 		if (op_stack.length == 0) {
 			// TODO: error
 		} else {
-			op_stack.pop();
+			op_stack.pop(); // pop (
 		}
 	} else {
 		// operator
@@ -462,7 +457,7 @@ function onTokenEmitted(t) {
 			if (t2.val == "(") {
 				break;
 			}
-			if (precedence(t2.val) <= p1) {
+			if (precedence(t2.val) < p1) {
 				break;
 			}
 			rpn_queue.push(op_stack.pop());
