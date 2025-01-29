@@ -1,4 +1,3 @@
-// TODO: backspace
 // TODO: Do not run gameloop when no animation active
 // TODO: pick a valid puzzle at random
 // TODO: aspect ratio (phone)
@@ -827,7 +826,7 @@ function onBracketClicked(button) {
 	setButtonStates(); // update buttons accordingly
 }
 
-function onEqualsClicked() {
+function onEqualsClicked(button) {
 	buttonsPressed.push(button);
 
 	let res = evalRPN(); // NumDen
@@ -882,8 +881,20 @@ function onAcClicked() {
 }
 
 function onBackClicked() {
-	// TODO:
-	// We want to init, then rerun all button presses except last one
+	// Pretty hacky:
+	// We init, then rerun all button presses except last one
+
+	// make copy of buttonsPressed array, except last item
+	bp = [];
+	for (let ii = 0; ii < buttonsPressed.length - 1; ++ii) {
+		bp[ii] = buttonsPressed[ii];
+	}
+
+	onAcClicked(); // also clears buttonsPressed in the process
+
+	for (b of bp) {
+		b.callback(b);
+	}
 }
 
 function onSolutionClicked(button) {
