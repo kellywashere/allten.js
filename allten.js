@@ -1,7 +1,8 @@
 // TODO: backspace
-// TODO: Solved buttons. When clicked, show sol in text UI
 // TODO: Do not run gameloop when no animation active
 // TODO: pick a valid puzzle at random
+// TODO: aspect ratio (phone)
+// TODO: canvas scaling (phone)
 
 // nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
 
@@ -23,12 +24,15 @@ let solvedButtons = [];
 let allButtons = []; // convenience: array of all buttons
 
 let exprBox;
-let exprBoxToBeCleared = false; // set to true when next button should clear text box
 
 // STATE variables
 // keeps track of all buttons pressed (backspace, button states)
 let buttonsPressed = [];
-let lastResultButton = null; // used for intermediate results
+let lastResultButton = null; // used for intermediate results, when after that, operator is pressed first
+let exprBoxToBeCleared = false; // set to true when next button should clear text box
+
+let totExpression = ""; // used to keep track of total expression to reach final answer
+// The expression text box shows intermediate results as result instead
 
 // TODO: do not hardcode this ;)
 let digits = [4, 6, 8, 8];
@@ -205,12 +209,18 @@ class RoundRectOperatorButton extends RoundRectTextButton {
 	}
 }
 
+class RoundRectSolvedButton extends RoundRectTextButton {
+	constructor(x, y, w, h, r, txt, bgcolor, callback) {
+		super(x, y, w, h, r, txt, bgcolor, callback);
+		this.expression = null; // the solution string
+	}
+}
+
 class RoundRectNumDenButton extends RoundRectButton {
 	constructor(x, y, w, h, r, nd, callback) {
 		super(x, y, w, h, r, nrButtonColor, callback);
 		this.nd = nd; // value NumDen
 		this.iscomposite = false; // true if nd is result of earlier calculation
-		// TODO: equation:
 		this.equation = ""; // for composite: equation how this was reached
 	}
 
@@ -467,8 +477,8 @@ function evalRPN() {
 	}
 	if (rpn_queue.length == 0) return null;
 
-	console.log("evalRPN()");
-	print_queue(rpn_queue);
+	//console.log("evalRPN()");
+	//print_queue(rpn_queue);
 
 	// now process rpn_queue
 	let res_stack = [];
@@ -511,8 +521,6 @@ function generateUIelements() {
 	midX = canvas.width / 2;
 	midY = canvas.height - 300; // middle of input button field
 
-	console.log("midX = " + midX + ", midY = " + midY);
-
 	// prettier-ignore
 	nrButtons.push(
 		new RoundRectNumDenButton(midX - 80, midY - 80, 80, 80, 40, new NumDen(), onNumClicked),
@@ -546,14 +554,14 @@ function generateUIelements() {
 	for (let ii = 0; ii < 5; ++ii) {
 		// prettier-ignore
 		solvedButtons.push(
-			new RoundRectTextButton(midX + (ii - 2) * 80, midY - 340, 60, 60, 14,
+			new RoundRectSolvedButton(midX + (ii - 2) * 80, midY - 340, 60, 60, 14,
 				(ii + 1).toString(), solvedButtonColor, onSolutionClicked)
 		);
 	}
 	for (let ii = 0; ii < 5; ++ii) {
 		// prettier-ignore
 		solvedButtons.push(
-			new RoundRectTextButton(midX + (ii - 2) * 80, midY - 340 + 80, 60, 60, 14,
+			new RoundRectSolvedButton(midX + (ii - 2) * 80, midY - 340 + 80, 60, 60, 14,
 				(ii + 6).toString(), solvedButtonColor, onSolutionClicked)
 		);
 	}
@@ -582,7 +590,6 @@ function moveUIelements(dx, dy) {
 
 function resizeCanvas() {
 	// prev size: canvasW, canvasH
-	console.log("Resize");
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
 
@@ -603,7 +610,7 @@ window.onload = function () {
 
 	generateUIelements();
 
-	window.addEventListener("resize", resizeCanvas); // TODO: move buttons
+	window.addEventListener("resize", resizeCanvas);
 
 	// Mouse listener, takes care of all input events
 	canvas.addEventListener("click", function (e) {
@@ -621,6 +628,7 @@ window.onload = function () {
 	buttonInit(); // sets en/disable of buttons
 	evalInit(); // init the eval data structures
 	lastResultButton = null;
+	totExpression = "";
 
 	requestAnimationFrame(gameloop);
 };
@@ -632,6 +640,7 @@ function buttonInit() {
 		nrButtons[ii].nd.set(digits[ii]);
 		nrButtons[ii].show();
 		nrButtons[ii].iscomposite = false;
+		nrButtons[ii].expression = digits[ii].toString(); // how nr was reached
 	}
 	setButtonStates();
 }
@@ -644,8 +653,9 @@ function allNumbersUsed() {
 	return true;
 }
 
-function relabelNrButton(res) {
+function relabelNrButton(res, expression) {
 	// relables the first hidden button with res and shows it
+	// Stores expression used in button
 	// TODO: Kewl animation
 	// find first hidden button
 	let button = null;
@@ -658,7 +668,9 @@ function relabelNrButton(res) {
 	if (button) {
 		button.nd.set(res);
 		button.iscomposite = true;
+		button.expression = expression;
 		button.show();
+		console.log("Copying to button: " + expression);
 	}
 	return button;
 }
@@ -736,8 +748,8 @@ function setButtonStates() {
 }
 
 function showSolution(sol) {
-	// TODO: Remember full solution expression to show when sol button is pressed
 	solvedButtons[sol - 1].enable();
+	solvedButtons[sol - 1].expression = new String(totExpression);
 }
 
 function onNumClicked(button) {
@@ -771,6 +783,7 @@ function onNumClicked(button) {
 	onTokenEmitted({ num: true, val: nd });
 
 	exprBox.setText(exprBox.getText() + nd.toString());
+	totExpression += button.expression;
 	setButtonStates(); // update buttons accordingly
 }
 
@@ -791,7 +804,8 @@ function onOperatorClicked(button) {
 		lastResultButton.hide();
 		lastResultButton = null;
 	}
-	exprBox.setText(exprBox.getText() + " " + button.op + " ");
+	exprBox.setText(exprBox.getText() + " " + button.txt + " ");
+	totExpression += " " + button.txt + " ";
 	onTokenEmitted({ num: false, val: button.op });
 	setButtonStates(); // update buttons accordingly
 }
@@ -807,7 +821,8 @@ function onBracketClicked(button) {
 	lastResultButton = null;
 	exprBox.setFGcolor("black");
 
-	exprBox.setText(exprBox.getText() + button.op);
+	exprBox.setText(exprBox.getText() + button.txt);
+	totExpression += button.txt;
 	onTokenEmitted({ num: false, val: button.op });
 	setButtonStates(); // update buttons accordingly
 }
@@ -823,7 +838,7 @@ function onEqualsClicked() {
 
 	evalInit();
 	if (res.den == 0) {
-		exprBox.setText("Division by 0"); // TODO: clear when starting new eq (exprBox err state?)
+		exprBox.setText("Division by 0");
 		exprBox.setErrorState();
 	} else {
 		exprBox.setText(res.toString());
@@ -838,8 +853,10 @@ function onEqualsClicked() {
 			}
 		} else {
 			// intermed result, only way reset becomes false
-			exprBox.setText("");
-			lastResultButton = relabelNrButton(res);
+			// Store expression in relabeled button
+			// TODO: Only put brackets when not already in brackets. Also not for concat numbers
+			const expression = "(" + totExpression + ")";
+			lastResultButton = relabelNrButton(res, expression);
 			reset = false; // keep going...
 		}
 	}
@@ -849,7 +866,7 @@ function onEqualsClicked() {
 		// evalInit(); // already done at start of fn
 		lastResultButton = null;
 	}
-
+	totExpression = "";
 	exprBoxToBeCleared = true; // next button will clear display
 	setButtonStates(); // update buttons accordingly
 }
@@ -857,18 +874,28 @@ function onEqualsClicked() {
 function onAcClicked() {
 	// init, start new expression
 	buttonInit(); // sets en/disable of buttons
-	evalInit(); // already done at start of fn
+	evalInit();
 	lastResultButton = null;
 	exprBox.setText("");
 	exprBox.setNeutralState();
+	totExpression = "";
 }
 
-function onBackClicked() {}
+function onBackClicked() {
+	// TODO:
+	// We want to init, then rerun all button presses except last one
+}
 
 function onSolutionClicked(button) {
-	// TODO: Show expression in display
-	let solClicked = parseInt(button.txt);
-	console.log("Solution " + solClicked);
+	console.log("Solution " + button.expression);
+	exprBox.setText(button.expression + " = " + button.txt);
+	exprBox.setCorrectState();
+	// init
+	buttonInit(); // sets en/disable of buttons
+	evalInit();
+	lastResultButton = null;
+	totExpression = "";
+	exprBoxToBeCleared = true; // next button will clear display
 }
 
 function gameloop() {
