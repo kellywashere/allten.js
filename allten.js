@@ -1,9 +1,8 @@
-// TODO: Disable = button when only one button was pressed before
-// TODO: Do not run gameloop when no animation active
-// TODO: aspect ratio (phone)
 // TODO: new puzzle button after solve
+// TODO: aspect ratio (phone)
+// TODO: Do not run gameloop when no animation active
 
-// nr buttons can hold expression (which can be of length 1 --> digit), and their outcome (displayed)
+// TODO: Do not add brackets around subexpr when already in brackets (nice to have)
 
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
@@ -26,12 +25,12 @@ let exprBox;
 let buttonsPressed = [];
 let lastResultButton = null; // used for intermediate results, when after that, operator is pressed first
 let exprBoxToBeCleared = false; // set to true when next button should clear text box
+let subexprHasOperator = false; // used to disallow pressing equals after single operand was entered
 
-let totExpression = ""; // used to keep track of total expression to reach final answer
+let subExpression = ""; // used to keep track of total expression to reach final answer
 // The expression text box shows intermediate results as result instead
 
-// TODO: do not hardcode this ;)
-let digits = [4, 6, 8, 8];
+let digits = [];
 
 const font_family = "Arial";
 const symButtonColor = "DarkBlue";
@@ -637,7 +636,8 @@ function initNewPuzzle(puzzle_nr) {
 	buttonInit(); // sets en/disable of buttons
 	evalInit(); // init the eval data structures
 	lastResultButton = null;
-	totExpression = "";
+	subExpression = "";
+	subexprHasOperator = false;
 }
 
 window.onload = function () {
@@ -769,7 +769,10 @@ function setButtonStates() {
 		bracketButtons[1].disable();
 	}
 	// Equals button
-	enbl = bracket_depth == 0 && (lastWasNr || lastWasCloseBrack);
+	enbl =
+		bracket_depth == 0 &&
+		(lastWasNr || lastWasCloseBrack) &&
+		subexprHasOperator;
 	if (enbl) {
 		equalsButton.enable();
 	} else {
@@ -779,7 +782,7 @@ function setButtonStates() {
 
 function showSolution(sol) {
 	solvedButtons[sol - 1].enable();
-	solvedButtons[sol - 1].expression = new String(totExpression);
+	solvedButtons[sol - 1].expression = new String(subExpression);
 }
 
 function onNumClicked(button) {
@@ -806,6 +809,8 @@ function onNumClicked(button) {
 	if (lastWasNr && !lastWasComposite) {
 		// concat
 		onTokenEmitted({ num: false, val: "c" }); // special operator c for concat
+		// we allow equals button to be pressed now
+		subexprHasOperator = true;
 	}
 
 	// emit token
@@ -813,7 +818,7 @@ function onNumClicked(button) {
 	onTokenEmitted({ num: true, val: nd });
 
 	exprBox.setText(exprBox.getText() + nd.toString());
-	totExpression += button.expression;
+	subExpression += button.expression;
 	setButtonStates(); // update buttons accordingly
 }
 
@@ -835,7 +840,8 @@ function onOperatorClicked(button) {
 		lastResultButton = null;
 	}
 	exprBox.setText(exprBox.getText() + " " + button.txt + " ");
-	totExpression += " " + button.txt + " ";
+	subExpression += " " + button.txt + " ";
+	subexprHasOperator = true;
 	onTokenEmitted({ num: false, val: button.op });
 	setButtonStates(); // update buttons accordingly
 }
@@ -852,7 +858,7 @@ function onBracketClicked(button) {
 	exprBox.setFGcolor("black");
 
 	exprBox.setText(exprBox.getText() + button.txt);
-	totExpression += button.txt;
+	subExpression += button.txt;
 	onTokenEmitted({ num: false, val: button.op });
 	setButtonStates(); // update buttons accordingly
 }
@@ -885,7 +891,7 @@ function onEqualsClicked(button) {
 			// intermed result, only way reset becomes false
 			// Store expression in relabeled button
 			// TODO: Only put brackets when not already in brackets. Also not for concat numbers
-			const expression = "(" + totExpression + ")";
+			const expression = "(" + subExpression + ")";
 			lastResultButton = relabelNrButton(res, expression);
 			reset = false; // keep going...
 		}
@@ -896,7 +902,8 @@ function onEqualsClicked(button) {
 		// evalInit(); // already done at start of fn
 		lastResultButton = null;
 	}
-	totExpression = "";
+	subExpression = "";
+	subexprHasOperator = false;
 	exprBoxToBeCleared = true; // next button will clear display
 	setButtonStates(); // update buttons accordingly
 }
@@ -908,7 +915,8 @@ function onAcClicked() {
 	lastResultButton = null;
 	exprBox.setText("");
 	exprBox.setNeutralState();
-	totExpression = "";
+	subExpression = "";
+	subexprHasOperator = false;
 }
 
 function onBackClicked() {
@@ -936,7 +944,8 @@ function onSolutionClicked(button) {
 	buttonInit(); // sets en/disable of buttons
 	evalInit();
 	lastResultButton = null;
-	totExpression = "";
+	subExpression = "";
+	subexprHasOperator = false;
 	exprBoxToBeCleared = true; // next button will clear display
 }
 
