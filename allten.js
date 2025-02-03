@@ -7,6 +7,17 @@
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
+// game loop
+let prevtime_ms = null; // previous timestamp gameloop
+let starttime_ms = null;
+let abstime_s = 0; // abs time in s
+
+// physics
+let gravity; // not const, function of screen height...
+const gravity_height_ratio = 0.2; // gravity = height * gravity_height_ratio
+const nrParticles = 50; // per firework
+let particles = [];
+
 // UI elements
 let nrButtons = [];
 let opButtons = [];
@@ -38,6 +49,9 @@ const solvedButtonColor = "YellowGreen";
 const nrButtonColor = "Red";
 const compositeButtonColor = "MediumVioletRed";
 const acbackButtonColor = "Red";
+
+// TODO: allow any color for particles; complicated due to intensity lerp
+// const fireworksColor = "#ff0000";
 
 function fillCenteredText(ctx, text, x, y) {
 	// truly centered text
@@ -613,6 +627,8 @@ function resizeCanvas() {
 	canvas.width = window.innerWidth * dpr;
 	canvas.height = window.innerHeight * dpr;
 
+	gravity = canvas.height * gravity_height_ratio;
+
 	placeUIelements();
 	sizeUIelements();
 }
@@ -644,6 +660,8 @@ window.onload = function () {
 	const dpr = window.devicePixelRatio || 1;
 	canvas.width = window.innerWidth * dpr;
 	canvas.height = window.innerHeight * dpr;
+
+	gravity = canvas.height * gravity_height_ratio;
 
 	generateUIelements();
 
@@ -780,9 +798,10 @@ function setButtonStates() {
 	}
 }
 
-function showSolution(sol) {
+function showSolutionButton(sol) {
 	solvedButtons[sol - 1].enable();
 	solvedButtons[sol - 1].expression = new String(subExpression);
+	return solvedButtons[sol - 1];
 }
 
 function onNumClicked(button) {
@@ -882,8 +901,9 @@ function onEqualsClicked(button) {
 		if (allNumbersUsed()) {
 			// check solution
 			if (res.den == 1 && res.num >= 1 && res.num <= 10) {
-				showSolution(res.num);
+				const solButton = showSolutionButton(res.num);
 				exprBox.setCorrectState();
+				spawnFirework(solButton.x, solButton.y);
 			} else {
 				exprBox.setErrorState();
 			}
@@ -949,13 +969,91 @@ function onSolutionClicked(button) {
 	exprBoxToBeCleared = true; // next button will clear display
 }
 
-function gameloop() {
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	// draw all UI elements
-	for (const button of allButtons) {
-		button.draw(ctx);
+// Particle system
+
+function updateParticles(dt) {
+	// see: https://stackoverflow.com/questions/9882284/looping-through-array-and-removing-items-without-breaking-for-loop
+	// particle: { posx, posy, radius, vx, vy, t, duration }
+	let ii = particles.length;
+	while (ii--) {
+		let p = particles[ii];
+		p.t += dt;
+		if (p.t >= p.duration) {
+			particles.splice(ii, 1);
+		} else if (p.t >= 0) {
+			// only update if born
+			p.posx += p.vx * dt;
+			p.posy += p.vy * dt;
+			p.vy += gravity * dt;
+		}
 	}
-	exprBox.draw(ctx);
+}
+
+function renderParticles() {
+	// particle: { posx, posy, radius, vx, vy, t, duration }
+	for (const p of particles) {
+		if (p.t < 0) continue;
+		let intensity = (p.duration - p.t) / p.duration;
+		if (intensity > 0) {
+			ctx.beginPath();
+			ctx.arc(p.posx, p.posy, p.radius * intensity, 0, 2 * Math.PI);
+			// TODO: allow any color for particles; complicated due to intensity lerp
+			ctx.fillStyle = "rgba(0,255,0," + intensity + ")";
+			ctx.fill();
+		}
+	}
+}
+
+function spawnFirework(x, y, delay) {
+	let n = nrParticles;
+	let radius = canvas.height / 300;
+	let scale_v = canvas.height / 7;
+	delay = delay || 0;
+
+	while (n--) {
+		let x1, x2, d;
+		do {
+			x1 = 2 * Math.random() - 1;
+			x2 = 2 * Math.random() - 1;
+			d = 1 - x1 * x1 - x2 * x2;
+		} while (d <= 0);
+		let sqrtd = Math.sqrt(d);
+		let t = -delay; // set to negative if we want to postpone the particle appearance
+		// particle: { posx, posy, radius, vx, vy, t, duration }
+		let p = {
+			posx: x,
+			posy: y,
+			radius: radius,
+			vx: scale_v * 2 * x1 * sqrtd,
+			vy: scale_v * 2 * x2 * sqrtd,
+			t: t,
+			duration: 1.0,
+		};
+		particles.push(p);
+	}
+}
+
+function gameloop(timestamp_ms) {
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+	if (starttime_ms) {
+		dt = (timestamp_ms - prevtime_ms) * 1e-3; // dt in ms
+		abstime_s = (timestamp_ms - starttime_ms) * 1e-3;
+
+		// draw all UI elements
+		for (const button of allButtons) {
+			button.draw(ctx);
+		}
+		exprBox.draw(ctx);
+
+		// particle system
+		updateParticles(dt);
+		renderParticles();
+	} else {
+		starttime_ms = timestamp_ms;
+	}
+
+	prevtime_ms = timestamp_ms;
 
 	requestAnimationFrame(gameloop);
 }
