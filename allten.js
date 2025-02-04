@@ -26,6 +26,9 @@ let equalsButton = null;
 let acButton = null; // all clear
 let backButton = null; // backspace
 let solvedButtons = [];
+let playAgainButton = null;
+
+let DEBUG_BUTTON = null; // TODO: remove!!!
 
 let allButtons = []; // convenience: array of all buttons
 
@@ -41,6 +44,8 @@ let subexprHasOperator = false; // used to disallow pressing equals after single
 let subExpression = ""; // used to keep track of total expression to reach final answer
 // The expression text box shows intermediate results as result instead
 
+let solved10 = false;
+
 let digits = [];
 
 const font_family = "Arial";
@@ -49,6 +54,7 @@ const solvedButtonColor = "YellowGreen";
 const nrButtonColor = "Red";
 const compositeButtonColor = "MediumVioletRed";
 const acbackButtonColor = "Red";
+const playAgainButtonColor = symButtonColor;
 
 // TODO: allow any color for particles; complicated due to intensity lerp
 // const fireworksColor = "#ff0000";
@@ -553,6 +559,7 @@ function placeUIelements() {
 	for (let ii = 0; ii < 5; ++ii) {
 		solvedButtons[ii + 5].setPos(midX + (ii - 2) * h * 0.085, h * 0.395);
 	}
+	playAgainButton.setPos(midX, h * 0.15);
 	exprBox.setPos(midX, h * 0.48);
 }
 
@@ -574,6 +581,7 @@ function sizeUIelements() {
 		b.setSize(h * 0.065, h * 0.065, (h * 0.065) / 4);
 	}
 	exprBox.setSize(h * 0.43, h * 0.043);
+	playAgainButton.setSize(h * 0.4, h * 0.1, h * 0.01);
 }
 
 function generateUIelements() {
@@ -601,6 +609,15 @@ function generateUIelements() {
 	// prettier-ignore
 	backButton = new RoundRectTextButton(onBackClicked, "⌫", 0, 0, 0, 0, 0, acbackButtonColor);
 
+	// prettier-ignore
+	playAgainButton = new RoundRectTextButton(onPlayAgainClicked,
+		"Play Again", 0, 0, 0, 0, 0, playAgainButtonColor);
+	playAgainButton.hide();
+
+	// TODO: REMOVE
+	// prettier-ignore
+	DEBUG_BUTTON = new RoundRectTextButton(onDebugClicked, "DEBUG", 150, 40, 200, 40, 20, "red");
+
 	// solved buttons
 	for (let ii = 1; ii <= 10; ++ii) {
 		// prettier-ignore
@@ -619,7 +636,18 @@ function generateUIelements() {
 		equalsButton,
 		acButton,
 		backButton,
+		playAgainButton,
+		DEBUG_BUTTON, // TODO: REMOVE
 	);
+}
+
+function onDebugClicked() {
+	for (let ii = 0; ii < 10; ++ii) {
+		if (!solvedButtons[ii].enabled) {
+			solvedButtons[ii].enable();
+			break;
+		}
+	}
 }
 
 function resizeCanvas() {
@@ -646,14 +674,22 @@ function initNewPuzzle(puzzle_nr) {
 		n = Math.floor(n / 10);
 	}
 
+	// reset UI state
 	for (b of solvedButtons) {
 		b.disable();
 	}
 	buttonInit(); // sets en/disable of buttons
-	evalInit(); // init the eval data structures
 	lastResultButton = null;
 	subExpression = "";
 	subexprHasOperator = false;
+
+	exprBox.setText("");
+	exprBox.setNeutralState();
+	exprBoxToBeCleared = false;
+
+	// misc state reset
+	evalInit(); // init the eval data structures
+	solved10 = false;
 }
 
 window.onload = function () {
@@ -798,10 +834,25 @@ function setButtonStates() {
 	}
 }
 
-function showSolutionButton(sol) {
+function enableSolutionButton(sol) {
+	//let already_enabled = solvedButtons[sol - 1].enable;
 	solvedButtons[sol - 1].enable();
-	solvedButtons[sol - 1].expression = new String(subExpression);
+	solvedButtons[sol - 1].expression = new String(subExpression); // save solution
+	//return already_enabled ? null : solvedButtons[sol - 1];
 	return solvedButtons[sol - 1];
+}
+
+function checkAllSolved() {
+	for (let ii = 0; ii < 10; ++ii) {
+		if (!solvedButtons[ii].enabled) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function onPlayAgainClicked() {
+	initNewPuzzle();
 }
 
 function onNumClicked(button) {
@@ -899,11 +950,19 @@ function onEqualsClicked(button) {
 		exprBox.setText(res.toString());
 		// two cases: all nrs are used, or not
 		if (allNumbersUsed()) {
+			// we have solved one
 			// check solution
 			if (res.den == 1 && res.num >= 1 && res.num <= 10) {
-				const solButton = showSolutionButton(res.num);
+				const solButton = enableSolutionButton(res.num); // returns null if was already solved
 				exprBox.setCorrectState();
-				spawnFirework(solButton.x, solButton.y);
+				// was previously unsolved
+				solved10 = checkAllSolved();
+				if (solved10) {
+					spawn10Fireworks();
+					// TODO: after animation done: show "play again" button
+				} else {
+					spawnFirework(solButton.x, solButton.y); //yeah
+				}
 			} else {
 				exprBox.setErrorState();
 			}
@@ -1033,6 +1092,14 @@ function spawnFirework(x, y, delay) {
 	}
 }
 
+function spawn10Fireworks() {
+	for (let ii = 0; ii < 10; ++ii) {
+		let x = solvedButtons[ii].x;
+		let y = solvedButtons[ii].y;
+		spawnFirework(x, y, ii * 0.1);
+	}
+}
+
 function gameloop(timestamp_ms) {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1045,6 +1112,12 @@ function gameloop(timestamp_ms) {
 			button.draw(ctx);
 		}
 		exprBox.draw(ctx);
+
+		if (solved10 && particles.length == 0) {
+			playAgainButton.show();
+		} else {
+			playAgainButton.hide();
+		}
 
 		// particle system
 		updateParticles(dt);
