@@ -1,4 +1,3 @@
-// TODO: new puzzle button after solve
 // TODO: aspect ratio (phone)
 // TODO: Do not run gameloop when no animation active
 
@@ -49,8 +48,9 @@ let solved10 = false;
 let digits = [];
 
 const font_family = "Arial";
+const disbldButtonColor = "#444444";
 const symButtonColor = "DarkBlue";
-const solvedButtonColor = "YellowGreen";
+const solvedButtonColor = "#337711";
 const nrButtonColor = "Red";
 const compositeButtonColor = "MediumVioletRed";
 const acbackButtonColor = "Red";
@@ -161,7 +161,7 @@ class RoundRectButton {
 
 	draw(ctx) {
 		if (!this.visible) return;
-		let bgcolor = this.enabled ? this.bgcolor : "#dddddd";
+		let bgcolor = this.enabled ? this.bgcolor : disbldButtonColor;
 		ctx.beginPath(); // rect path for fill and clip
 		// prettier-ignore
 		ctx.roundRect( this.x - this.w / 2, this.y - this.h / 2, this.w, this.h, this.r);
@@ -202,7 +202,7 @@ class RoundRectTextButton extends RoundRectButton {
 		ctx.clip();
 		let fontsize = this.h / 2;
 		ctx.font = fontsize.toString() + "px " + font_family;
-		ctx.fillStyle = "white";
+		ctx.fillStyle = this.enabled ? "white" : "#999999";
 		ctx.textBaseline = "middle";
 		ctx.textAlign = "center";
 		fillCenteredText(ctx, this.txt, this.x, this.y);
@@ -320,7 +320,7 @@ class TextBox {
 			this.h / 2,
 		);
 		if (this.state == 1) {
-			ctx.fillStyle = "YellowGreen";
+			ctx.fillStyle = solvedButtonColor;
 		} else if (this.state == -1) {
 			ctx.fillStyle = "Tomato";
 		} else {
@@ -617,6 +617,7 @@ function generateUIelements() {
 	// TODO: REMOVE
 	// prettier-ignore
 	DEBUG_BUTTON = new RoundRectTextButton(onDebugClicked, "DEBUG", 150, 40, 200, 40, 20, "red");
+	DEBUG_BUTTON.hide(); // <--- Remove this line to show debug button <---
 
 	// solved buttons
 	for (let ii = 1; ii <= 10; ++ii) {
