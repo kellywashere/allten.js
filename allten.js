@@ -653,8 +653,8 @@ function onDebugClicked() {
 
 function resizeCanvas() {
 	// Init canvas size
-	//const dpr = window.devicePixelRatio || 1;
-	const dpr = 1;
+	const dpr = window.devicePixelRatio || 1;
+	// const dpr = 1;
 	const div = document.getElementById("div-canvas");
 	canvas.width = div.offsetWidth * dpr;
 	canvas.height = div.offsetHeight * dpr;
@@ -699,8 +699,8 @@ function initNewPuzzle(puzzle_nr) {
 
 window.onload = function () {
 	// Init canvas size
-	//const dpr = window.devicePixelRatio || 1;
-	const dpr = 1;
+	const dpr = window.devicePixelRatio || 1;
+	// const dpr = 1;
 	const div = document.getElementById("div-canvas");
 	canvas.width = div.offsetWidth * dpr;
 	canvas.height = div.offsetHeight * dpr;
