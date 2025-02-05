@@ -3,7 +3,7 @@
 
 // TODO: Do not add brackets around subexpr when already in brackets (nice to have)
 
-const canvas = document.getElementById("board");
+const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 // game loop
@@ -653,8 +653,10 @@ function onDebugClicked() {
 
 function resizeCanvas() {
 	const dpr = window.devicePixelRatio || 1;
-	canvas.width = window.innerWidth * dpr;
-	canvas.height = window.innerHeight * dpr;
+
+	const div = document.getElementById("div-canvas");
+	canvas.width = div.offsetWidth * dpr;
+	canvas.height = div.offsetHeight * dpr;
 
 	gravity = canvas.height * gravity_height_ratio;
 
@@ -694,8 +696,10 @@ function initNewPuzzle(puzzle_nr) {
 
 window.onload = function () {
 	const dpr = window.devicePixelRatio || 1;
-	canvas.width = window.innerWidth * dpr;
-	canvas.height = window.innerHeight * dpr;
+
+	const div = document.getElementById("div-canvas");
+	canvas.width = div.offsetWidth * dpr;
+	canvas.height = div.offsetHeight * dpr;
 
 	gravity = canvas.height * gravity_height_ratio;
 
@@ -755,7 +759,7 @@ function relabelNrButton(res, expression) {
 		button.iscomposite = true;
 		button.expression = expression;
 		button.show();
-		console.log("Copying to button: " + expression);
+		//console.log("Copying to button: " + expression);
 	}
 	return button;
 }
@@ -939,7 +943,7 @@ function onEqualsClicked(button) {
 
 	let res = evalRPN(); // NumDen
 	if (!res) return;
-	console.log(res.toString());
+	//console.log(res.toString());
 
 	let reset = true; // when true, resets state
 
@@ -1016,7 +1020,7 @@ function onBackClicked() {
 }
 
 function onSolutionClicked(button) {
-	console.log("Solution " + button.expression);
+	//console.log("Solution " + button.expression);
 	exprBox.setText(button.expression + " = " + button.txt);
 	exprBox.setCorrectState();
 	// init
