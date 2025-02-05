@@ -680,7 +680,6 @@ function initNewPuzzle(puzzle_nr) {
 		b.disable();
 	}
 	buttonInit(); // sets en/disable of buttons
-	lastResultButton = null;
 	subExpression = "";
 	subexprHasOperator = false;
 
@@ -721,6 +720,7 @@ window.onload = function () {
 function buttonInit() {
 	// initialize buttons (values, enbl/disbl)
 	buttonsPressed = [];
+	lastResultButton = null;
 	for (let ii = 0; ii < digits.length; ++ii) {
 		nrButtons[ii].nd.set(digits[ii]);
 		nrButtons[ii].show();
@@ -992,7 +992,6 @@ function onAcClicked() {
 	// init, start new expression
 	buttonInit(); // sets en/disable of buttons
 	evalInit();
-	lastResultButton = null;
 	exprBox.setText("");
 	exprBox.setNeutralState();
 	subExpression = "";
