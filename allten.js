@@ -652,11 +652,10 @@ function onDebugClicked() {
 }
 
 function resizeCanvas() {
+	// Init canvas size
 	const dpr = window.devicePixelRatio || 1;
-
-	const div = document.getElementById("div-canvas");
-	canvas.width = div.offsetWidth * dpr;
-	canvas.height = div.offsetHeight * dpr;
+	canvas.width = window.innerWidth * dpr;
+	canvas.height = window.innerHeight * dpr;
 
 	gravity = canvas.height * gravity_height_ratio;
 
@@ -697,11 +696,10 @@ function initNewPuzzle(puzzle_nr) {
 }
 
 window.onload = function () {
+	// Init canvas size
 	const dpr = window.devicePixelRatio || 1;
-
-	const div = document.getElementById("div-canvas");
-	canvas.width = div.offsetWidth * dpr;
-	canvas.height = div.offsetHeight * dpr;
+	canvas.width = window.innerWidth * dpr;
+	canvas.height = window.innerHeight * dpr;
 
 	gravity = canvas.height * gravity_height_ratio;
 
