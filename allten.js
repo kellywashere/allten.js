@@ -692,6 +692,8 @@ function initNewPuzzle(puzzle_nr) {
 	// misc state reset
 	evalInit(); // init the eval data structures
 	solved10 = false;
+
+	window.removeEventListener("beforeunload", beforeUnloadHandler);
 }
 
 window.onload = function () {
@@ -715,11 +717,24 @@ window.onload = function () {
 			}
 		}
 	});
+	/*
+	window.onbeforeunload = function () {
+		const n = nrSolutionsFound();
+		console.log(n);
+		return n > 0 && n < 10;
+	};
+	*/
 
 	initNewPuzzle();
 
 	requestAnimationFrame(gameloop);
 };
+
+function beforeUnloadHandler(e) {
+	e.preventDefault();
+	// Included for legacy support, e.g. Chrome/Edge < 119
+	e.returnValue = true;
+}
 
 function buttonInit() {
 	// initialize buttons (values, enbl/disbl)
@@ -847,13 +862,24 @@ function enableSolutionButton(sol) {
 	return solvedButtons[sol - 1];
 }
 
+function nrSolutionsFound() {
+	let n = 0;
+	for (let ii = 0; ii < 10; ++ii) {
+		n += solvedButtons[ii].enabled ? 1 : 0;
+	}
+	return n;
+}
+
 function checkAllSolved() {
+	return nrSolutionsFound() == 10;
+	/*
 	for (let ii = 0; ii < 10; ++ii) {
 		if (!solvedButtons[ii].enabled) {
 			return false;
 		}
 	}
 	return true;
+	*/
 }
 
 function onPlayAgainClicked() {
@@ -965,8 +991,10 @@ function onEqualsClicked(button) {
 				if (solved10) {
 					spawn10Fireworks();
 					// TODO: after animation done: show "play again" button
+					window.removeEventListener("beforeunload", beforeUnloadHandler);
 				} else {
 					spawnFirework(solButton.x, solButton.y); //yeah
+					window.addEventListener("beforeunload", beforeUnloadHandler);
 				}
 			} else {
 				exprBox.setErrorState();
