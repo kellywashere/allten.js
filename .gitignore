@@ -1,5 +1,5 @@
 node_modules/
-live.sh
+live*.sh
 package-lock.json
 package.json
 .editorconfig
