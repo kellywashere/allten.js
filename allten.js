@@ -653,20 +653,6 @@ function onDebugClicked() {
 	}
 }
 
-function resizeCanvas() {
-	// Init canvas size
-	const dpr = window.devicePixelRatio || 1;
-	// const dpr = 1;
-	const div = document.getElementById("div-canvas");
-	canvas.width = div.offsetWidth * dpr;
-	canvas.height = div.offsetHeight * dpr;
-
-	gravity = canvas.height * gravity_height_ratio;
-
-	placeUIelements();
-	sizeUIelements();
-}
-
 function initNewPuzzle(puzzle_nr) {
 	let n = puzzle_nr;
 	if (!n) {
@@ -699,13 +685,36 @@ function initNewPuzzle(puzzle_nr) {
 	window.removeEventListener("beforeunload", beforeUnloadHandler);
 }
 
-window.onload = function () {
-	// Init canvas size
+function sizeCanvas() {
 	const dpr = window.devicePixelRatio || 1;
 	// const dpr = 1;
 	const div = document.getElementById("div-canvas");
 	canvas.width = div.offsetWidth * dpr;
 	canvas.height = div.offsetHeight * dpr;
+}
+
+function resizeCanvas() {
+	sizeCanvas();
+
+	gravity = canvas.height * gravity_height_ratio;
+
+	placeUIelements();
+	sizeUIelements();
+}
+
+function parseGetRequest() {
+	// https://stackoverflow.com/questions/4209052/how-to-read-get-request-using-javascript
+	var request = {};
+	var pairs = location.search.substring(1).split("&");
+	for (var i = 0; i < pairs.length; i++) {
+		var pair = pairs[i].split("=");
+		request[pair[0]] = pair[1];
+	}
+	return request;
+}
+
+window.onload = function () {
+	sizeCanvas();
 
 	gravity = canvas.height * gravity_height_ratio;
 
@@ -721,15 +730,13 @@ window.onload = function () {
 			}
 		}
 	});
-	/*
-	window.onbeforeunload = function () {
-		const n = nrSolutionsFound();
-		console.log(n);
-		return n > 0 && n < 10;
-	};
-	*/
 
-	initNewPuzzle();
+	request = parseGetRequest();
+	if (request["digits"]) {
+		initNewPuzzle(parseInt(request["digits"]));
+	} else {
+		initNewPuzzle();
+	}
 
 	requestAnimationFrame(gameloop);
 };
