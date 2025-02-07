@@ -1,3 +1,5 @@
+// TODO: parse html request to allow selecting certain puzzle
+
 // TODO: aspect ratio (phone)
 // TODO: Do not run gameloop when no animation active
 
@@ -811,7 +813,8 @@ function setButtonStates() {
 		}
 	}
 	// operator buttons
-	enable = lastWasNr || lastWasCloseBrack || lastResultButton;
+	enable =
+		(lastWasNr || lastWasCloseBrack || lastResultButton) && !allNumbersUsed();
 	for (button of opButtons) {
 		if (enable) {
 			button.enable();
@@ -831,7 +834,8 @@ function setButtonStates() {
 		}
 	}
 	// open bracket:
-	enbl = bracket_depth < 3 && !lastWasCloseBrack;
+	enbl =
+		bracket_depth < 3 && !lastWasCloseBrack && !lastWasNr && !allNumbersUsed();
 	if (enbl) {
 		bracketButtons[0].enable();
 	} else {
