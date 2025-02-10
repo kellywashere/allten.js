@@ -7,6 +7,8 @@
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const dpr = window.devicePixelRatio || 1;
+// const dpr = 1;
 
 // game loop
 let prevtime_ms = null; // previous timestamp gameloop
@@ -686,8 +688,6 @@ function initNewPuzzle(puzzle_nr) {
 }
 
 function sizeCanvas() {
-	const dpr = window.devicePixelRatio || 1;
-	// const dpr = 1;
 	const div = document.getElementById("div-canvas");
 	canvas.width = div.offsetWidth * dpr;
 	canvas.height = div.offsetHeight * dpr;
